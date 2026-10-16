@@ -15,6 +15,7 @@ const links = [
   { to: '/bodegas', label: 'Bodegas' },
   { to: '/productos', label: 'Productos' },
   { to: '/stock', label: 'Stock' },
+  { to: '/stock/entrada', label: 'Entrada de stock' },
 ]
 </script>
 

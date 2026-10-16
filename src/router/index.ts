@@ -4,6 +4,7 @@ import HomeView from '@/views/HomeView.vue'
 import LoginView from '@/views/LoginView.vue'
 import PendingView from '@/views/PendingView.vue'
 import ProductsView from '@/views/ProductsView.vue'
+import StockEntryView from '@/views/StockEntryView.vue'
 import WarehousesView from '@/views/WarehousesView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
 import { installAuthGuard } from './guard'
@@ -25,6 +26,7 @@ export const routes = [
       { path: 'bodegas', component: WarehousesView },
       { path: 'productos', component: ProductsView },
       { path: 'stock', component: PendingView, props: { title: 'Stock' } },
+      { path: 'stock/entrada', component: StockEntryView },
     ],
   },
   { path: '/:pathMatch(.*)*', component: NotFoundView },

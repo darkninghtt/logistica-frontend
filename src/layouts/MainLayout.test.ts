@@ -16,6 +16,6 @@ describe('MainLayout', () => {
     await router.isReady()
     const wrapper = mount(MainLayout, { global: { plugins: [createPinia(), router] } })
     const texts = wrapper.findAll('nav a').map((a) => a.text())
-    expect(texts).toEqual(['Inicio', 'Bodegas', 'Productos', 'Stock'])
+    expect(texts).toEqual(['Inicio', 'Bodegas', 'Productos', 'Stock', 'Entrada de stock'])
   })
 })
