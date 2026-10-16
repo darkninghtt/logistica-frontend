@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type Router } from 'vue-router'
 import MainLayout from '@/layouts/MainLayout.vue'
 import HomeView from '@/views/HomeView.vue'
 import PendingView from '@/views/PendingView.vue'
+import WarehousesView from '@/views/WarehousesView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
 
 export const routes = [
@@ -10,7 +11,7 @@ export const routes = [
     component: MainLayout,
     children: [
       { path: '', component: HomeView },
-      { path: 'bodegas', component: PendingView, props: { title: 'Bodegas' } },
+      { path: 'bodegas', component: WarehousesView },
       { path: 'productos', component: PendingView, props: { title: 'Productos' } },
       { path: 'stock', component: PendingView, props: { title: 'Stock' } },
     ],
