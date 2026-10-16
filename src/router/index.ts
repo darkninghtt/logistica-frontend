@@ -2,8 +2,8 @@ import { createRouter, createWebHistory, type Router } from 'vue-router'
 import MainLayout from '@/layouts/MainLayout.vue'
 import HomeView from '@/views/HomeView.vue'
 import LoginView from '@/views/LoginView.vue'
-import PendingView from '@/views/PendingView.vue'
 import ProductsView from '@/views/ProductsView.vue'
+import StockView from '@/views/StockView.vue'
 import WarehousesView from '@/views/WarehousesView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
 import { installAuthGuard } from './guard'
@@ -24,7 +24,7 @@ export const routes = [
       { path: '', component: HomeView },
       { path: 'bodegas', component: WarehousesView },
       { path: 'productos', component: ProductsView },
-      { path: 'stock', component: PendingView, props: { title: 'Stock' } },
+      { path: 'stock', component: StockView },
     ],
   },
   { path: '/:pathMatch(.*)*', component: NotFoundView },
