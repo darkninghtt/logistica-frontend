@@ -3,6 +3,7 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import HomeView from '@/views/HomeView.vue'
 import LoginView from '@/views/LoginView.vue'
 import PendingView from '@/views/PendingView.vue'
+import ProductsView from '@/views/ProductsView.vue'
 import WarehousesView from '@/views/WarehousesView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
 import { installAuthGuard } from './guard'
@@ -22,7 +23,7 @@ export const routes = [
     children: [
       { path: '', component: HomeView },
       { path: 'bodegas', component: WarehousesView },
-      { path: 'productos', component: PendingView, props: { title: 'Productos' } },
+      { path: 'productos', component: ProductsView },
       { path: 'stock', component: PendingView, props: { title: 'Stock' } },
     ],
   },

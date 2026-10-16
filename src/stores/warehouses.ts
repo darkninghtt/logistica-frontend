@@ -2,9 +2,8 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import * as api from '@/api/warehouses'
 import { toApiError } from '@/api/http'
+import type { LoadStatus } from '@/types/api'
 import type { Warehouse, WarehouseInput } from '@/types/warehouse'
-
-export type LoadStatus = 'idle' | 'loading' | 'success' | 'error'
 
 /** Store del dominio "bodegas": datos normalizados (`byId` + `ids` de la página actual). */
 export const useWarehousesStore = defineStore('warehouses', () => {
