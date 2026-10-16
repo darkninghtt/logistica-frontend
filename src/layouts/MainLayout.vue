@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
+const router = useRouter()
+
+async function onLogout(): Promise<void> {
+  auth.logout()
+  await router.replace('/login')
+}
 
 const links = [
   { to: '/', label: 'Inicio' },
@@ -16,6 +25,10 @@ const links = [
       <nav aria-label="Principal">
         <RouterLink v-for="link in links" :key="link.to" :to="link.to">{{ link.label }}</RouterLink>
       </nav>
+      <div class="session">
+        <span v-if="auth.user">{{ auth.user.name }}</span>
+        <button type="button" @click="onLogout">Cerrar sesión</button>
+      </div>
     </header>
     <main class="content">
       <RouterView />
@@ -39,6 +52,12 @@ const links = [
 nav {
   display: flex;
   gap: 1rem;
+}
+.session {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 nav a {
   color: #d1d5db;
