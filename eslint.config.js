@@ -20,7 +20,7 @@ export default tseslint.config(
   {
     // Solo el cliente axios puede importar axios (regla de la semana 1).
     files: ['src/**/*.{ts,vue}'],
-    ignores: ['src/api/http.ts'],
+    ignores: ['src/api/http.ts', 'src/api/http.test.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
