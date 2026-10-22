@@ -4,6 +4,8 @@ import { createPinia, setActivePinia } from 'pinia'
 import * as api from '@/api/products'
 import { ApiError } from '@/api/http'
 import ProductsView from './ProductsView.vue'
+import { piniaSignedInAs } from '@/testing'
+import type { Role } from '@/types/auth'
 import type { Product } from '@/types/product'
 
 vi.mock('@/api/products')
@@ -16,8 +18,8 @@ function page(skus: string[], total = skus.length) {
   return { data: skus.map(product), page: 1, pageSize: 10, total }
 }
 
-async function mountView() {
-  const wrapper = mount(ProductsView, { global: { plugins: [createPinia()] } })
+async function mountView(role: Role = 'ADMIN') {
+  const wrapper = mount(ProductsView, { global: { plugins: [piniaSignedInAs(role)] } })
   await flushPromises()
   return wrapper
 }
@@ -124,5 +126,36 @@ describe('ProductsView', () => {
     await wrapper.findAll('.pager button')[1]?.trigger('click')
 
     expect(api.listProducts).toHaveBeenLastCalledWith(2, 10)
+  })
+})
+
+describe('ProductsView según el rol', () => {
+  it.each(['WAREHOUSE_MANAGER', 'OPERATOR', 'AUDITOR'] as const)(
+    '%s ve la lista pero sin crear ni editar',
+    async (role) => {
+      vi.mocked(api.listProducts).mockResolvedValue(page(['A']))
+      const wrapper = await mountView(role)
+
+      expect(wrapper.findAll('tbody tr')).toHaveLength(1)
+      expect(wrapper.text()).not.toContain('Nuevo producto')
+      expect(wrapper.text()).not.toContain('Editar')
+      expect(wrapper.text()).not.toContain('Acciones')
+    },
+  )
+
+  it('el ADMIN conserva crear y editar', async () => {
+    vi.mocked(api.listProducts).mockResolvedValue(page(['A']))
+    const wrapper = await mountView('ADMIN')
+    expect(wrapper.text()).toContain('Nuevo producto')
+    expect(wrapper.text()).toContain('Editar')
+  })
+
+  it('un 403 de la API se muestra con un mensaje claro y permite reintentar', async () => {
+    vi.mocked(api.listProducts).mockRejectedValue(
+      new ApiError('No tienes permiso para realizar esta acción', 403, 'FORBIDDEN', 'c-1'),
+    )
+    const wrapper = await mountView('OPERATOR')
+    expect(wrapper.find('[role=alert]').text()).toContain('No tienes permiso')
+    expect(wrapper.find('[role=alert] button').text()).toBe('Reintentar')
   })
 })

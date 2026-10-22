@@ -5,6 +5,8 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 import MainLayout from './MainLayout.vue'
+import { piniaSignedInAs } from '@/testing'
+import type { Role } from '@/types/auth'
 import HomeView from '@/views/HomeView.vue'
 
 vi.mock('@/api/auth')
@@ -18,7 +20,7 @@ describe('MainLayout', () => {
     })
     router.push('/')
     await router.isReady()
-    const wrapper = mount(MainLayout, { global: { plugins: [createPinia(), router] } })
+    const wrapper = mount(MainLayout, { global: { plugins: [piniaSignedInAs('ADMIN'), router] } })
     const texts = wrapper.findAll('nav a').map((a) => a.text())
     expect(texts).toEqual(['Inicio', 'Bodegas', 'Productos', 'Stock', 'Entrada de stock'])
   })
@@ -43,5 +45,40 @@ describe('MainLayout', () => {
 
     expect(logout).toHaveBeenCalledTimes(1)
     expect(api.logout).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('MainLayout: menú según el rol', () => {
+  async function linksFor(role: Role): Promise<string[]> {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/', component: HomeView }],
+    })
+    router.push('/')
+    await router.isReady()
+    const wrapper = mount(MainLayout, { global: { plugins: [piniaSignedInAs(role), router] } })
+    return wrapper.findAll('nav a').map((a) => a.text())
+  }
+
+  it.each([
+    ['ADMIN', ['Inicio', 'Bodegas', 'Productos', 'Stock', 'Entrada de stock']],
+    ['WAREHOUSE_MANAGER', ['Inicio', 'Bodegas', 'Productos', 'Stock', 'Entrada de stock']],
+    ['OPERATOR', ['Inicio', 'Bodegas', 'Productos', 'Stock']],
+    ['AUDITOR', ['Inicio', 'Bodegas', 'Productos', 'Stock']],
+  ] as const)('%s ve %j', async (role, expected) => {
+    expect(await linksFor(role)).toEqual(expected)
+  })
+
+  it('muestra el nombre y el rol del usuario', async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/', component: HomeView }],
+    })
+    router.push('/')
+    await router.isReady()
+    const wrapper = mount(MainLayout, {
+      global: { plugins: [piniaSignedInAs('OPERATOR'), router] },
+    })
+    expect(wrapper.find('[data-test=user]').text()).toContain('Operario')
   })
 })

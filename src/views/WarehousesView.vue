@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import WarehouseForm from '@/components/WarehouseForm.vue'
+import { useAuthStore } from '@/stores/auth'
 import { useWarehousesStore } from '@/stores/warehouses'
 import type { Warehouse, WarehouseInput } from '@/types/warehouse'
 
 const store = useWarehousesStore()
+// Solo el ADMIN crea y edita; el resto ve la lista (la API ya filtra por asignación)
+const canWrite = useAuthStore().can('catalog:write')
 
 // Estado de la vista: qué formulario está abierto. `null` = cerrado; `'new'` = crear.
 const editing = ref<Warehouse | 'new' | null>(null)
@@ -34,11 +37,11 @@ async function toggleActive(warehouse: Warehouse): Promise<void> {
   <section>
     <div class="header">
       <h1>Bodegas</h1>
-      <button type="button" @click="openForm('new')">Nueva bodega</button>
+      <button v-if="canWrite" type="button" @click="openForm('new')">Nueva bodega</button>
     </div>
 
     <WarehouseForm
-      v-if="editing"
+      v-if="canWrite && editing"
       :warehouse="editing === 'new' ? undefined : editing"
       :saving="store.saving"
       :server-error="store.saveError"
@@ -53,7 +56,13 @@ async function toggleActive(warehouse: Warehouse): Promise<void> {
       <button type="button" @click="store.fetchPage()">Reintentar</button>
     </div>
 
-    <p v-else-if="store.items.length === 0">Todavía no hay bodegas. Crea la primera.</p>
+    <p v-else-if="store.items.length === 0" data-test="empty">
+      {{
+        canWrite
+          ? 'Todavía no hay bodegas. Crea la primera.'
+          : 'No tienes bodegas asignadas. Pide a un administrador que te asigne una.'
+      }}
+    </p>
 
     <template v-else>
       <table>
@@ -62,7 +71,7 @@ async function toggleActive(warehouse: Warehouse): Promise<void> {
             <th>Código</th>
             <th>Nombre</th>
             <th>Estado</th>
-            <th>Acciones</th>
+            <th v-if="canWrite">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -70,7 +79,7 @@ async function toggleActive(warehouse: Warehouse): Promise<void> {
             <td>{{ warehouse.code }}</td>
             <td>{{ warehouse.name }}</td>
             <td>{{ warehouse.active ? 'Activa' : 'Inactiva' }}</td>
-            <td class="row-actions">
+            <td v-if="canWrite" class="row-actions">
               <button type="button" :disabled="store.saving" @click="openForm(warehouse)">
                 Editar
               </button>

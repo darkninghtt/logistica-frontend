@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { useStockStore } from '@/stores/stock'
 
+const auth = useAuthStore()
 const store = useStockStore()
 
 onMounted(() => store.loadOptions())
+
+// El OPERATOR no recibe costos: la API no los envía y sus columnas no se muestran
+const levelsHaveCosts = computed(() => store.levels.some((l) => l.avgCost !== undefined))
+const movementsHaveCosts = computed(() => store.movements.some((m) => m.unitCost !== undefined))
 
 function onWarehouseChange(event: Event): void {
   if (event.target instanceof HTMLSelectElement) void store.selectWarehouse(event.target.value)
@@ -33,8 +39,13 @@ function formatDate(iso: string): string {
       <button type="button" @click="store.loadOptions()">Reintentar</button>
     </div>
 
-    <p v-else-if="store.warehouses.length === 0">
-      Todavía no hay bodegas. Crea una en <RouterLink to="/bodegas">Bodegas</RouterLink>.
+    <p v-else-if="store.warehouses.length === 0" data-test="no-warehouses">
+      <template v-if="auth.can('catalog:write')">
+        Todavía no hay bodegas. Crea una en <RouterLink to="/bodegas">Bodegas</RouterLink>.
+      </template>
+      <template v-else>
+        No tienes bodegas asignadas. Pide a un administrador que te asigne una.
+      </template>
     </p>
 
     <template v-else>
@@ -73,8 +84,10 @@ function formatDate(iso: string): string {
                 <th>Producto</th>
                 <th>Unidad</th>
                 <th class="num">Cantidad</th>
-                <th class="num">Costo promedio</th>
-                <th class="num">Valor total</th>
+                <template v-if="levelsHaveCosts">
+                  <th class="num">Costo promedio</th>
+                  <th class="num">Valor total</th>
+                </template>
               </tr>
             </thead>
             <tbody>
@@ -83,8 +96,10 @@ function formatDate(iso: string): string {
                 <td>{{ level.productName }}</td>
                 <td>{{ level.productUnit }}</td>
                 <td class="num">{{ level.quantity }}</td>
-                <td class="num">{{ level.avgCost }}</td>
-                <td class="num">{{ level.totalValue }}</td>
+                <template v-if="levelsHaveCosts">
+                  <td class="num">{{ level.avgCost }}</td>
+                  <td class="num">{{ level.totalValue }}</td>
+                </template>
               </tr>
             </tbody>
           </table>
@@ -138,9 +153,9 @@ function formatDate(iso: string): string {
                 <th>Producto</th>
                 <th>Tipo</th>
                 <th class="num">Cantidad</th>
-                <th class="num">Costo unitario</th>
+                <th v-if="movementsHaveCosts" class="num">Costo unitario</th>
                 <th class="num">Saldo</th>
-                <th class="num">Costo promedio</th>
+                <th v-if="movementsHaveCosts" class="num">Costo promedio</th>
               </tr>
             </thead>
             <tbody>
@@ -150,9 +165,9 @@ function formatDate(iso: string): string {
                 <td>{{ movement.productName }}</td>
                 <td>{{ movement.type === 'ENTRY' ? 'Entrada' : movement.type }}</td>
                 <td class="num">{{ movement.quantity }}</td>
-                <td class="num">{{ movement.unitCost }}</td>
+                <td v-if="movementsHaveCosts" class="num">{{ movement.unitCost }}</td>
                 <td class="num">{{ movement.balanceQty }}</td>
-                <td class="num">{{ movement.balanceAvgCost }}</td>
+                <td v-if="movementsHaveCosts" class="num">{{ movement.balanceAvgCost }}</td>
               </tr>
             </tbody>
           </table>

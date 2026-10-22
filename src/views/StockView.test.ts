@@ -7,6 +7,8 @@ import * as warehousesApi from '@/api/warehouses'
 import * as productsApi from '@/api/products'
 import { ApiError } from '@/api/http'
 import StockView from './StockView.vue'
+import { piniaSignedInAs } from '@/testing'
+import type { Role } from '@/types/auth'
 import type { StockLevelItem, StockMovementItem } from '@/types/stock'
 
 vi.mock('@/api/stock')
@@ -48,12 +50,12 @@ function pageOf<T>(data: T[], total = data.length) {
   return { data, page: 1, pageSize: 10, total }
 }
 
-async function mountView() {
+async function mountView(role: Role = 'ADMIN') {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/', component: StockView }],
   })
-  const wrapper = mount(StockView, { global: { plugins: [createPinia(), router] } })
+  const wrapper = mount(StockView, { global: { plugins: [piniaSignedInAs(role), router] } })
   await flushPromises()
   return wrapper
 }
@@ -202,5 +204,77 @@ describe('StockView', () => {
     await next?.trigger('click')
 
     expect(stockApi.listStockMovements).toHaveBeenLastCalledWith('w-1', undefined, 2, 10)
+  })
+})
+
+describe('StockView según el rol (costos)', () => {
+  const LEVEL_NO_COST: StockLevelItem = {
+    productId: 'p-A',
+    warehouseId: 'w-1',
+    quantity: 20,
+    productSku: 'SKU-1',
+    productName: 'Tornillo',
+    productUnit: 'un',
+  }
+  const MOVEMENT_NO_COST: StockMovementItem = {
+    id: '1',
+    productId: 'p-A',
+    warehouseId: 'w-1',
+    type: 'ENTRY',
+    quantity: 10,
+    balanceQty: 20,
+    createdBy: 'u-1',
+    createdAt: '2026-01-01T10:00:00.000Z',
+    productSku: 'SKU-1',
+    productName: 'Tornillo',
+  }
+
+  it.each(['ADMIN', 'AUDITOR', 'WAREHOUSE_MANAGER'] as const)(
+    '%s ve las columnas de costo',
+    async (role) => {
+      const wrapper = await mountView(role)
+      await chooseWarehouse(wrapper)
+
+      const text = wrapper.text()
+      expect(text).toContain('Costo promedio')
+      expect(text).toContain('Valor total')
+      expect(text).toContain('Costo unitario')
+      expect(text).toContain('110.0000')
+    },
+  )
+
+  it('si la API no envía costos (OPERATOR), no se muestran las columnas de costo', async () => {
+    vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([LEVEL_NO_COST]))
+    vi.mocked(stockApi.listStockMovements).mockResolvedValue(pageOf([MOVEMENT_NO_COST]))
+    const wrapper = await mountView('OPERATOR')
+    await chooseWarehouse(wrapper)
+
+    const text = wrapper.text()
+    expect(wrapper.find('[data-test=levels-table]').exists()).toBe(true)
+    expect(wrapper.find('[data-test=movements-table]').exists()).toBe(true)
+    expect(text).toContain('Cantidad')
+    expect(text).toContain('Saldo')
+    expect(text).not.toContain('Costo')
+    expect(text).not.toContain('Valor total')
+    expect(text).not.toContain('undefined')
+  })
+
+  it('un 403 al cargar las existencias se muestra con el mensaje de la API', async () => {
+    vi.mocked(stockApi.listStockLevels).mockRejectedValue(
+      new ApiError('No tienes acceso a esa bodega', 403, 'FORBIDDEN', 'c-1'),
+    )
+    const wrapper = await mountView('OPERATOR')
+    await chooseWarehouse(wrapper)
+    expect(wrapper.find('[data-test=levels-error]').text()).toContain(
+      'No tienes acceso a esa bodega',
+    )
+  })
+
+  it('sin bodegas asignadas, el operario ve el aviso para pedir una asignación', async () => {
+    vi.mocked(warehousesApi.listWarehouses).mockResolvedValue(pageOf([]))
+    const wrapper = await mountView('OPERATOR')
+    expect(wrapper.find('[data-test=no-warehouses]').text()).toContain(
+      'No tienes bodegas asignadas',
+    )
   })
 })
