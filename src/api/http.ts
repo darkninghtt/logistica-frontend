@@ -28,6 +28,13 @@ function field(body: unknown, key: string): string | null {
   return typeof value === 'string' ? value : null
 }
 
+// Si la respuesta no trae el cuerpo de error de la API (por ejemplo, la corta un proxy),
+// estos mensajes aseguran que 403 y 429 se expliquen con claridad.
+const STATUS_MESSAGES: Record<number, string> = {
+  403: 'No tienes permiso para realizar esta acción',
+  429: 'Demasiadas peticiones, intenta de nuevo en unos minutos',
+}
+
 /** Convierte cualquier fallo de una petición en un ApiError con mensaje legible para el usuario. */
 export function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err
@@ -35,7 +42,9 @@ export function toApiError(err: unknown): ApiError {
     if (err.response) {
       const body: unknown = err.response.data
       return new ApiError(
-        field(body, 'message') ?? 'El servidor devolvió un error',
+        field(body, 'message') ??
+          STATUS_MESSAGES[err.response.status] ??
+          'El servidor devolvió un error',
         err.response.status,
         field(body, 'code'),
         field(body, 'correlationId'),
