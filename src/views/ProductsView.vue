@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import ProductForm from '@/components/ProductForm.vue'
+import { useAuthStore } from '@/stores/auth'
 import { useProductsStore } from '@/stores/products'
 import type { Product, ProductInput } from '@/types/product'
 
 const store = useProductsStore()
+// Solo el ADMIN crea y edita; el resto consulta
+const canWrite = useAuthStore().can('catalog:write')
 
 // Estado de la vista: qué formulario está abierto. `null` = cerrado; `'new'` = crear.
 const editing = ref<Product | 'new' | null>(null)
@@ -27,11 +30,11 @@ function openForm(target: Product | 'new'): void {
   <section>
     <div class="header">
       <h1>Productos</h1>
-      <button type="button" @click="openForm('new')">Nuevo producto</button>
+      <button v-if="canWrite" type="button" @click="openForm('new')">Nuevo producto</button>
     </div>
 
     <ProductForm
-      v-if="editing"
+      v-if="canWrite && editing"
       :product="editing === 'new' ? undefined : editing"
       :saving="store.saving"
       :server-error="store.saveError"
@@ -46,7 +49,9 @@ function openForm(target: Product | 'new'): void {
       <button type="button" @click="store.fetchPage()">Reintentar</button>
     </div>
 
-    <p v-else-if="store.items.length === 0">Todavía no hay productos. Crea el primero.</p>
+    <p v-else-if="store.items.length === 0" data-test="empty">
+      {{ canWrite ? 'Todavía no hay productos. Crea el primero.' : 'Todavía no hay productos.' }}
+    </p>
 
     <template v-else>
       <table>
@@ -55,7 +60,7 @@ function openForm(target: Product | 'new'): void {
             <th>SKU</th>
             <th>Nombre</th>
             <th>Unidad</th>
-            <th>Acciones</th>
+            <th v-if="canWrite">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -63,7 +68,7 @@ function openForm(target: Product | 'new'): void {
             <td>{{ product.sku }}</td>
             <td>{{ product.name }}</td>
             <td>{{ product.unit }}</td>
-            <td class="row-actions">
+            <td v-if="canWrite" class="row-actions">
               <button type="button" :disabled="store.saving" @click="openForm(product)">
                 Editar
               </button>

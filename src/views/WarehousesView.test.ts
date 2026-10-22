@@ -4,6 +4,8 @@ import { createPinia, setActivePinia } from 'pinia'
 import * as api from '@/api/warehouses'
 import { ApiError } from '@/api/http'
 import WarehousesView from './WarehousesView.vue'
+import { piniaSignedInAs } from '@/testing'
+import type { Role } from '@/types/auth'
 import type { Warehouse } from '@/types/warehouse'
 
 vi.mock('@/api/warehouses')
@@ -16,8 +18,8 @@ function page(codes: string[], total = codes.length) {
   return { data: codes.map((c) => warehouse(c)), page: 1, pageSize: 10, total }
 }
 
-async function mountView() {
-  const wrapper = mount(WarehousesView, { global: { plugins: [createPinia()] } })
+async function mountView(role: Role = 'ADMIN') {
+  const wrapper = mount(WarehousesView, { global: { plugins: [piniaSignedInAs(role)] } })
   await flushPromises()
   return wrapper
 }
@@ -139,5 +141,43 @@ describe('WarehousesView', () => {
     await next?.trigger('click')
 
     expect(api.listWarehouses).toHaveBeenLastCalledWith(2, 10)
+  })
+})
+
+describe('WarehousesView según el rol', () => {
+  const one = {
+    data: [{ id: 'w-1', code: 'A', name: 'Bodega A', active: true, createdAt: '' }],
+    page: 1,
+    pageSize: 10,
+    total: 1,
+  }
+
+  it.each(['WAREHOUSE_MANAGER', 'OPERATOR', 'AUDITOR'] as const)(
+    '%s ve la lista pero sin crear, editar ni desactivar',
+    async (role) => {
+      vi.mocked(api.listWarehouses).mockResolvedValue(one)
+      const wrapper = await mountView(role)
+
+      expect(wrapper.findAll('tbody tr')).toHaveLength(1)
+      expect(wrapper.text()).not.toContain('Nueva bodega')
+      expect(wrapper.text()).not.toContain('Editar')
+      expect(wrapper.text()).not.toContain('Desactivar')
+    },
+  )
+
+  it('el ADMIN conserva crear, editar y desactivar', async () => {
+    vi.mocked(api.listWarehouses).mockResolvedValue(one)
+    const wrapper = await mountView('ADMIN')
+    expect(wrapper.text()).toContain('Nueva bodega')
+    expect(wrapper.text()).toContain('Editar')
+    expect(wrapper.text()).toContain('Desactivar')
+  })
+
+  it('sin bodegas asignadas, el operario ve un aviso distinto al del ADMIN', async () => {
+    vi.mocked(api.listWarehouses).mockResolvedValue({ data: [], page: 1, pageSize: 10, total: 0 })
+    const operator = await mountView('OPERATOR')
+    expect(operator.find('[data-test=empty]').text()).toContain('No tienes bodegas asignadas')
+    const admin = await mountView('ADMIN')
+    expect(admin.find('[data-test=empty]').text()).toContain('Crea la primera')
   })
 })

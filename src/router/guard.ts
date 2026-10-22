@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
  * Decide si se permite entrar a una ruta. Devuelve `true` o a dónde redirigir (antes intenta
  * restaurar la sesión si hace falta):
  * - ruta protegida sin sesión → /login con la ruta de retorno en `redirect`;
+ * - ruta que exige un permiso que el rol no tiene → /sin-permiso (con la ruta pedida en `from`);
  * - /login con sesión iniciada → inicio.
  * Es solo comodidad de la interfaz: la seguridad real la aplica el backend.
  */
@@ -15,6 +16,10 @@ export async function resolveAccess(to: RouteLocationNormalized): Promise<true |
   if (!auth.isAuthenticated && !auth.sessionChecked) await auth.restoreSession()
   if (to.meta.public) return auth.isAuthenticated && to.path === '/login' ? '/' : true
   if (!auth.isAuthenticated) return { path: '/login', query: { redirect: to.fullPath } }
+  const required = to.meta.permission
+  if (required && !auth.can(required)) {
+    return { path: '/sin-permiso', query: { from: to.fullPath } }
+  }
   return true
 }
 

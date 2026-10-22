@@ -3,7 +3,8 @@ import { defineStore } from 'pinia'
 import * as api from '@/api/auth'
 import { toApiError } from '@/api/http'
 import { setAccessToken } from '@/api/token'
-import type { AuthUser, LoginInput } from '@/types/auth'
+import { roleCan, type Permission } from '@/permissions'
+import type { AuthUser, LoginInput, Role } from '@/types/auth'
 
 export type AuthStatus = 'idle' | 'loading' | 'success' | 'error'
 
@@ -20,6 +21,12 @@ export const useAuthStore = defineStore('auth', () => {
   const sessionChecked = ref(false)
 
   const isAuthenticated = computed(() => user.value !== null)
+  const role = computed<Role | null>(() => user.value?.role ?? null)
+
+  /** ¿El rol del usuario permite esta acción? (solo cortesía de la interfaz; manda el backend). */
+  function can(permission: Permission): boolean {
+    return roleCan(role.value, permission)
+  }
 
   /** Inicia sesión. Devuelve false y deja `error` si las credenciales o la red fallan. */
   async function login(input: LoginInput): Promise<boolean> {
@@ -79,6 +86,8 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     sessionChecked,
     isAuthenticated,
+    role,
+    can,
     login,
     restoreSession,
     clearSession,

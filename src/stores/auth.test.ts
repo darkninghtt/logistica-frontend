@@ -142,3 +142,25 @@ describe('store auth: restaurar la sesión', () => {
     expect(api.logout).not.toHaveBeenCalled()
   })
 })
+
+describe('rol y permisos del store', () => {
+  it('expone el rol y los permisos según el usuario de la sesión', async () => {
+    vi.mocked(api.login).mockResolvedValue({
+      accessToken: 't',
+      user: { id: '1', name: 'Jefe', email: 'j@b.co', role: 'WAREHOUSE_MANAGER' },
+    })
+    const auth = useAuthStore()
+
+    expect(auth.role).toBeNull()
+    expect(auth.can('stock:entry')).toBe(false)
+
+    await auth.login({ email: 'j@b.co', password: 'x' })
+    expect(auth.role).toBe('WAREHOUSE_MANAGER')
+    expect(auth.can('stock:entry')).toBe(true)
+    expect(auth.can('catalog:write')).toBe(false)
+
+    auth.clearSession()
+    expect(auth.role).toBeNull()
+    expect(auth.can('stock:entry')).toBe(false)
+  })
+})

@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { ROLE_LABELS, type Permission } from '@/permissions'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -10,13 +12,24 @@ async function onLogout(): Promise<void> {
   await router.replace('/login')
 }
 
-const links = [
+interface NavLink {
+  to: string
+  label: string
+  /** Si se indica, el enlace solo aparece para los roles con ese permiso. */
+  permission?: Permission
+}
+
+const allLinks: NavLink[] = [
   { to: '/', label: 'Inicio' },
   { to: '/bodegas', label: 'Bodegas' },
   { to: '/productos', label: 'Productos' },
   { to: '/stock', label: 'Stock' },
-  { to: '/stock/entrada', label: 'Entrada de stock' },
+  { to: '/stock/entrada', label: 'Entrada de stock', permission: 'stock:entry' },
 ]
+
+const links = computed(() =>
+  allLinks.filter((link) => !link.permission || auth.can(link.permission)),
+)
 </script>
 
 <template>
@@ -27,7 +40,9 @@ const links = [
         <RouterLink v-for="link in links" :key="link.to" :to="link.to">{{ link.label }}</RouterLink>
       </nav>
       <div class="session">
-        <span v-if="auth.user">{{ auth.user.name }}</span>
+        <span v-if="auth.user" data-test="user">
+          {{ auth.user.name }} · {{ ROLE_LABELS[auth.user.role] }}
+        </span>
         <button type="button" @click="onLogout">Cerrar sesión</button>
       </div>
     </header>

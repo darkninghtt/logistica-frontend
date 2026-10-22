@@ -261,3 +261,42 @@ describe('refreshSession', () => {
     expect(getAccessToken()).toBeNull()
   })
 })
+
+describe('errores 403 y 429', () => {
+  it('conserva el mensaje que envía la API', async () => {
+    const err = await failWith(403, {
+      code: 'FORBIDDEN',
+      message: 'No tienes acceso a esa bodega',
+      correlationId: 'c-9',
+    })
+    expect(err).toMatchObject({
+      status: 403,
+      code: 'FORBIDDEN',
+      message: 'No tienes acceso a esa bodega',
+    })
+  })
+
+  it('si la respuesta no trae el cuerpo de error, usa un mensaje claro para el 403', async () => {
+    const err = await failWith(403, '<html>Forbidden</html>')
+    expect(err).toMatchObject({
+      status: 403,
+      message: 'No tienes permiso para realizar esta acción',
+    })
+  })
+
+  it('si la respuesta no trae el cuerpo de error, usa un mensaje claro para el 429', async () => {
+    const err = await failWith(429, 'Too Many Requests')
+    expect(err).toMatchObject({
+      status: 429,
+      message: 'Demasiadas peticiones, intenta de nuevo en unos minutos',
+    })
+  })
+
+  it('un 403 no intenta renovar la sesión', async () => {
+    const onExpired = vi.fn()
+    setSessionExpiredHandler(onExpired)
+    await failWith(403, { code: 'FORBIDDEN', message: 'x', correlationId: 'c' })
+    expect(onExpired).not.toHaveBeenCalled()
+    setSessionExpiredHandler(null)
+  })
+})

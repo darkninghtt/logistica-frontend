@@ -5,6 +5,7 @@ import * as api from '@/api/auth'
 import { setAccessToken } from '@/api/token'
 import { useAuthStore } from '@/stores/auth'
 import { installAuthGuard } from './guard'
+import type { Role } from '@/types/auth'
 
 vi.mock('@/api/auth')
 
@@ -127,5 +128,69 @@ describe('guard: restaurar la sesión al cargar la página', () => {
     await router.push('/bodegas')
 
     expect(api.refreshSession).not.toHaveBeenCalled()
+  })
+})
+
+describe('guard: permisos por rol', () => {
+  function buildRouterWithPermissions(): Router {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/login', component: Stub, meta: { public: true } },
+        { path: '/', component: Stub },
+        { path: '/stock/entrada', component: Stub, meta: { permission: 'stock:entry' } },
+        { path: '/sin-permiso', component: Stub },
+      ],
+    })
+    installAuthGuard(router)
+    return router
+  }
+
+  async function signInAs(role: Role): Promise<void> {
+    vi.mocked(api.login).mockResolvedValue({
+      accessToken: 't',
+      user: { id: '1', name: 'Usuario', email: 'u@b.co', role },
+    })
+    await useAuthStore().login({ email: 'u@b.co', password: 'x' })
+  }
+
+  it.each(['ADMIN', 'WAREHOUSE_MANAGER'] as const)(
+    '%s entra a la entrada de stock',
+    async (role) => {
+      await signInAs(role)
+      const router = buildRouterWithPermissions()
+      await router.push('/stock/entrada')
+      expect(router.currentRoute.value.path).toBe('/stock/entrada')
+    },
+  )
+
+  it.each(['OPERATOR', 'AUDITOR'] as const)(
+    '%s que abre la entrada de stock por URL va a la pantalla de sin permiso',
+    async (role) => {
+      await signInAs(role)
+      const router = buildRouterWithPermissions()
+      await router.push('/stock/entrada')
+      expect(router.currentRoute.value.path).toBe('/sin-permiso')
+      expect(router.currentRoute.value.query.from).toBe('/stock/entrada')
+    },
+  )
+
+  it('las rutas sin permiso requerido quedan abiertas a cualquier rol con sesión', async () => {
+    await signInAs('OPERATOR')
+    const router = buildRouterWithPermissions()
+    await router.push('/')
+    expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('sin sesión sigue yendo al login (no a sin-permiso)', async () => {
+    const router = buildRouterWithPermissions()
+    await router.push('/stock/entrada')
+    expect(router.currentRoute.value.path).toBe('/login')
+  })
+
+  it('el router real exige el permiso en la entrada de stock', async () => {
+    const { routes } = await import('@/router')
+    const children = routes.flatMap((r) => r.children ?? [])
+    expect(children.find((r) => r.path === 'stock/entrada')?.meta?.permission).toBe('stock:entry')
   })
 })
