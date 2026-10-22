@@ -69,8 +69,63 @@ describe('guard de autenticación', () => {
     await signIn()
     const router = buildRouter()
     await router.push('/bodegas')
-    useAuthStore().logout()
+    await useAuthStore().logout()
     await router.push('/')
     expect(router.currentRoute.value.path).toBe('/login')
+  })
+})
+
+describe('guard: restaurar la sesión al cargar la página', () => {
+  const restored = {
+    accessToken: 'token-restaurado',
+    user: { id: '1', name: 'Admin', email: 'a@b.co', role: 'ADMIN' as const },
+  }
+
+  it('sin token en memoria pero con cookie válida, entra a la ruta sin pasar por el login', async () => {
+    vi.mocked(api.refreshSession).mockResolvedValue(restored)
+    const router = buildRouter()
+
+    await router.push('/bodegas')
+
+    expect(router.currentRoute.value.path).toBe('/bodegas')
+    expect(useAuthStore().user?.name).toBe('Admin')
+  })
+
+  it('si la sesión no se puede restaurar, redirige al login con la ruta de retorno', async () => {
+    vi.mocked(api.refreshSession).mockRejectedValue(new Error('sin sesión'))
+    const router = buildRouter()
+
+    await router.push('/bodegas')
+
+    expect(router.currentRoute.value.path).toBe('/login')
+    expect(router.currentRoute.value.query.redirect).toBe('/bodegas')
+  })
+
+  it('intenta restaurar una sola vez por carga de la página', async () => {
+    vi.mocked(api.refreshSession).mockRejectedValue(new Error('sin sesión'))
+    const router = buildRouter()
+
+    await router.push('/bodegas')
+    await router.push('/')
+
+    expect(api.refreshSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('con sesión restaurada, abrir el login redirige al inicio', async () => {
+    vi.mocked(api.refreshSession).mockResolvedValue(restored)
+    const router = buildRouter()
+
+    await router.push('/login')
+
+    expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('con sesión iniciada no vuelve a llamar al refresh', async () => {
+    await signIn()
+    const router = buildRouter()
+
+    await router.push('/bodegas')
+
+    expect(api.refreshSession).not.toHaveBeenCalled()
   })
 })

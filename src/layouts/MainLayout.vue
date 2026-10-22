@@ -6,7 +6,7 @@ const auth = useAuthStore()
 const router = useRouter()
 
 async function onLogout(): Promise<void> {
-  auth.logout()
+  await auth.logout()
   await router.replace('/login')
 }
 
