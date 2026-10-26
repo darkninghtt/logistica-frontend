@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import * as stockApi from '@/api/stock'
 import * as warehousesApi from '@/api/warehouses'
 import * as productsApi from '@/api/products'
 import { ApiError } from '@/api/http'
 import { useStockStore } from './stock'
+import { CACHE_TTL_MS } from '@/composables/useTtlCache'
 import type { StockLevelItem, StockMovementItem } from '@/types/stock'
 
 vi.mock('@/api/stock')
@@ -199,5 +200,121 @@ describe('store stock', () => {
     await first
 
     expect(store.levels.map((l) => l.productSku)).toEqual(['B'])
+  })
+})
+
+describe('caché con TTL de stock', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.mocked(warehousesApi.listWarehouses).mockResolvedValue(pageOf([]))
+    vi.mocked(productsApi.listProducts).mockResolvedValue(pageOf([]))
+    vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([level('A')], 1, 25))
+    vi.mocked(stockApi.listStockMovements).mockResolvedValue(pageOf([movement('1')], 1, 25))
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it('dos loadOptions seguidos piden una sola vez; con force o pasado el TTL, otra', async () => {
+    const store = useStockStore()
+
+    await store.loadOptions()
+    await store.loadOptions()
+    expect(warehousesApi.listWarehouses).toHaveBeenCalledTimes(1)
+    expect(store.optionsFetchedAt).not.toBeNull()
+
+    await store.loadOptions({ force: true })
+    expect(warehousesApi.listWarehouses).toHaveBeenCalledTimes(2)
+
+    vi.advanceTimersByTime(CACHE_TTL_MS)
+    await store.loadOptions()
+    expect(warehousesApi.listWarehouses).toHaveBeenCalledTimes(3)
+  })
+
+  it('si loadOptions falla no queda en caché', async () => {
+    vi.mocked(warehousesApi.listWarehouses).mockRejectedValueOnce(
+      new ApiError('Sin conexión', null, null, null),
+    )
+    const store = useStockStore()
+
+    await store.loadOptions()
+    expect(store.optionsFetchedAt).toBeNull()
+    await store.loadOptions()
+
+    expect(warehousesApi.listWarehouses).toHaveBeenCalledTimes(2)
+    expect(store.optionsStatus).toBe('success')
+  })
+
+  it('dos fetchLevels y dos fetchMovements seguidos de la misma consulta piden una sola vez', async () => {
+    const store = useStockStore()
+    await store.selectWarehouse('w-1')
+
+    await store.fetchLevels(1)
+    await store.fetchMovements(1)
+
+    expect(stockApi.listStockLevels).toHaveBeenCalledTimes(1)
+    expect(stockApi.listStockMovements).toHaveBeenCalledTimes(1)
+  })
+
+  it('cambiar de página, de bodega o de producto va al servidor', async () => {
+    const store = useStockStore()
+    await store.selectWarehouse('w-1')
+
+    await store.fetchLevels(2)
+    expect(stockApi.listStockLevels).toHaveBeenCalledTimes(2)
+
+    await store.selectProduct('p-A')
+    expect(stockApi.listStockMovements).toHaveBeenCalledTimes(2)
+
+    await store.selectWarehouse('w-2')
+    expect(stockApi.listStockLevels).toHaveBeenCalledTimes(3)
+    expect(stockApi.listStockMovements).toHaveBeenCalledTimes(3)
+  })
+
+  it('con force o pasado el TTL vuelve a pedir las existencias y el historial', async () => {
+    const store = useStockStore()
+    await store.selectWarehouse('w-1')
+
+    await store.fetchLevels(1, { force: true })
+    await store.fetchMovements(1, { force: true })
+    expect(stockApi.listStockLevels).toHaveBeenCalledTimes(2)
+    expect(stockApi.listStockMovements).toHaveBeenCalledTimes(2)
+
+    vi.advanceTimersByTime(CACHE_TTL_MS)
+    await store.fetchLevels(1)
+    await store.fetchMovements(1)
+    expect(stockApi.listStockLevels).toHaveBeenCalledTimes(3)
+    expect(stockApi.listStockMovements).toHaveBeenCalledTimes(3)
+  })
+
+  it('invalidate descarta existencias e historial; invalidateOptions, las opciones', async () => {
+    const store = useStockStore()
+    await store.loadOptions()
+    await store.selectWarehouse('w-1')
+
+    store.invalidate()
+    await store.fetchLevels(1)
+    await store.fetchMovements(1)
+    expect(stockApi.listStockLevels).toHaveBeenCalledTimes(2)
+    expect(stockApi.listStockMovements).toHaveBeenCalledTimes(2)
+    expect(warehousesApi.listWarehouses).toHaveBeenCalledTimes(1)
+
+    store.invalidateOptions()
+    await store.loadOptions()
+    expect(warehousesApi.listWarehouses).toHaveBeenCalledTimes(2)
+  })
+
+  it('si la carga de existencias falla no queda en caché', async () => {
+    vi.mocked(stockApi.listStockLevels)
+      .mockResolvedValueOnce(pageOf([level('A')]))
+      .mockRejectedValueOnce(new ApiError('Error interno', 500, null, null))
+      .mockResolvedValueOnce(pageOf([level('A')]))
+    const store = useStockStore()
+    await store.selectWarehouse('w-1')
+
+    await store.fetchLevels(1, { force: true })
+    expect(store.levelsStatus).toBe('error')
+    await store.fetchLevels(1)
+
+    expect(stockApi.listStockLevels).toHaveBeenCalledTimes(3)
+    expect(store.levelsStatus).toBe('success')
   })
 })

@@ -1,10 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import * as productsApi from '@/api/products'
 import * as stockApi from '@/api/stockEntries'
 import * as warehousesApi from '@/api/warehouses'
 import { ApiError } from '@/api/http'
 import { useStockEntriesStore } from './stockEntries'
+import { useStockStore } from './stock'
+import { CACHE_TTL_MS } from '@/composables/useTtlCache'
 import type { StockEntryInput, StockEntryResult } from '@/types/stockEntry'
 
 vi.mock('@/api/products')
@@ -133,5 +135,57 @@ describe('store stockEntries', () => {
 
     expect(store.lastEntry).toBeNull()
     expect(store.saveError).toBeNull()
+  })
+})
+
+describe('caché con TTL de stockEntries', () => {
+  const empty = { data: [], page: 1, pageSize: 100, total: 0 }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.mocked(warehousesApi.listWarehouses).mockResolvedValue(empty)
+    vi.mocked(productsApi.listProducts).mockResolvedValue(empty)
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it('dos loadOptions seguidos piden una sola vez; con force o pasado el TTL, otra', async () => {
+    const store = useStockEntriesStore()
+
+    await store.loadOptions()
+    await store.loadOptions()
+    expect(warehousesApi.listWarehouses).toHaveBeenCalledTimes(1)
+    expect(store.optionsFetchedAt).not.toBeNull()
+
+    await store.loadOptions({ force: true })
+    expect(warehousesApi.listWarehouses).toHaveBeenCalledTimes(2)
+
+    vi.advanceTimersByTime(CACHE_TTL_MS)
+    await store.loadOptions()
+    expect(warehousesApi.listWarehouses).toHaveBeenCalledTimes(3)
+  })
+
+  it('invalidateOptions hace que la próxima carga vaya al servidor', async () => {
+    const store = useStockEntriesStore()
+    await store.loadOptions()
+
+    store.invalidateOptions()
+    await store.loadOptions()
+
+    expect(warehousesApi.listWarehouses).toHaveBeenCalledTimes(2)
+  })
+
+  it('registrar una entrada invalida el stock; si falla, no', async () => {
+    const invalidateStock = vi.spyOn(useStockStore(), 'invalidate')
+    const store = useStockEntriesStore()
+
+    vi.mocked(stockApi.createStockEntry).mockRejectedValueOnce(
+      new ApiError('La bodega no existe', 404, null, null),
+    )
+    await store.register(input)
+    expect(invalidateStock).not.toHaveBeenCalled()
+
+    vi.mocked(stockApi.createStockEntry).mockResolvedValueOnce(result)
+    await store.register(input)
+    expect(invalidateStock).toHaveBeenCalledTimes(1)
   })
 })

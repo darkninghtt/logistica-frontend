@@ -4,6 +4,7 @@ import { listProducts } from '@/api/products'
 import { listStockLevels, listStockMovements } from '@/api/stock'
 import { listWarehouses } from '@/api/warehouses'
 import { toApiError } from '@/api/http'
+import { useTtlCache } from '@/composables/useTtlCache'
 import type { LoadStatus } from '@/types/api'
 import type { Product } from '@/types/product'
 import type { StockLevelItem, StockMovementItem } from '@/types/stock'
@@ -23,6 +24,7 @@ export const useStockStore = defineStore('stock', () => {
   const products = ref<Product[]>([])
   const optionsStatus = ref<LoadStatus>('idle')
   const optionsError = ref<string | null>(null)
+  const optionsCache = useTtlCache()
 
   const warehouseId = ref('')
   const productId = ref('')
@@ -33,6 +35,7 @@ export const useStockStore = defineStore('stock', () => {
   const levelsTotal = ref(0)
   const levelsStatus = ref<LoadStatus>('idle')
   const levelsError = ref<string | null>(null)
+  const levelsCache = useTtlCache()
 
   const movementsById = ref<Record<string, StockMovementItem>>({})
   const movementIds = ref<string[]>([])
@@ -40,6 +43,7 @@ export const useStockStore = defineStore('stock', () => {
   const movementsTotal = ref(0)
   const movementsStatus = ref<LoadStatus>('idle')
   const movementsError = ref<string | null>(null)
+  const movementsCache = useTtlCache()
 
   // Si el usuario cambia de bodega mientras llega una respuesta, esa respuesta ya no aplica.
   let levelsRequest = 0
@@ -60,7 +64,9 @@ export const useStockStore = defineStore('stock', () => {
   const levelsPages = computed(() => Math.max(1, Math.ceil(levelsTotal.value / PAGE_SIZE)))
   const movementsPages = computed(() => Math.max(1, Math.ceil(movementsTotal.value / PAGE_SIZE)))
 
-  async function loadOptions(): Promise<void> {
+  /** Carga las opciones de los selectores. Si siguen vigentes (TTL) no las vuelve a pedir, salvo con `force`. */
+  async function loadOptions({ force = false }: { force?: boolean } = {}): Promise<void> {
+    if (!force && optionsCache.isFresh()) return
     optionsStatus.value = 'loading'
     optionsError.value = null
     try {
@@ -70,15 +76,22 @@ export const useStockStore = defineStore('stock', () => {
       ])
       warehouses.value = warehousePage.data
       products.value = productPage.data
+      optionsCache.markFetched()
       optionsStatus.value = 'success'
     } catch (err) {
+      optionsCache.invalidate()
       optionsError.value = toApiError(err).message
       optionsStatus.value = 'error'
     }
   }
 
-  async function fetchLevels(target: number = levelsPage.value): Promise<void> {
+  async function fetchLevels(
+    target: number = levelsPage.value,
+    { force = false }: { force?: boolean } = {},
+  ): Promise<void> {
     if (!warehouseId.value) return
+    const key = `${warehouseId.value}|${target}`
+    if (!force && levelsCache.isFresh(key)) return
     const request = ++levelsRequest
     levelsStatus.value = 'loading'
     levelsError.value = null
@@ -89,16 +102,23 @@ export const useStockStore = defineStore('stock', () => {
       levelIds.value = result.data.map((l) => l.productId)
       levelsPage.value = result.page
       levelsTotal.value = result.total
+      levelsCache.markFetched(key)
       levelsStatus.value = 'success'
     } catch (err) {
       if (request !== levelsRequest) return
+      levelsCache.invalidate()
       levelsError.value = toApiError(err).message
       levelsStatus.value = 'error'
     }
   }
 
-  async function fetchMovements(target: number = movementsPage.value): Promise<void> {
+  async function fetchMovements(
+    target: number = movementsPage.value,
+    { force = false }: { force?: boolean } = {},
+  ): Promise<void> {
     if (!warehouseId.value) return
+    const key = `${warehouseId.value}|${productId.value}|${target}`
+    if (!force && movementsCache.isFresh(key)) return
     const request = ++movementsRequest
     movementsStatus.value = 'loading'
     movementsError.value = null
@@ -114,9 +134,11 @@ export const useStockStore = defineStore('stock', () => {
       movementIds.value = result.data.map((m) => m.id)
       movementsPage.value = result.page
       movementsTotal.value = result.total
+      movementsCache.markFetched(key)
       movementsStatus.value = 'success'
     } catch (err) {
       if (request !== movementsRequest) return
+      movementsCache.invalidate()
       movementsError.value = toApiError(err).message
       movementsStatus.value = 'error'
     }
@@ -128,6 +150,8 @@ export const useStockStore = defineStore('stock', () => {
     productId.value = ''
     levelIds.value = []
     movementIds.value = []
+    levelsCache.invalidate()
+    movementsCache.invalidate()
     if (!id) {
       levelsRequest++
       movementsRequest++
@@ -136,6 +160,17 @@ export const useStockStore = defineStore('stock', () => {
       return
     }
     await Promise.all([fetchLevels(1), fetchMovements(1)])
+  }
+
+  /** Descarta existencias e historial: tras mover stock (una entrada, un traspaso, una merma). */
+  function invalidate(): void {
+    levelsCache.invalidate()
+    movementsCache.invalidate()
+  }
+
+  /** Descarta las opciones de los selectores: tras crear o editar una bodega o un producto. */
+  function invalidateOptions(): void {
+    optionsCache.invalidate()
   }
 
   /** Filtra el historial por producto (cadena vacía = todos). */
@@ -149,6 +184,9 @@ export const useStockStore = defineStore('stock', () => {
     products,
     optionsStatus,
     optionsError,
+    optionsFetchedAt: optionsCache.lastFetchedAt,
+    levelsFetchedAt: levelsCache.lastFetchedAt,
+    movementsFetchedAt: movementsCache.lastFetchedAt,
     warehouseId,
     productId,
     levels,
@@ -168,5 +206,7 @@ export const useStockStore = defineStore('stock', () => {
     fetchMovements,
     selectWarehouse,
     selectProduct,
+    invalidate,
+    invalidateOptions,
   }
 })

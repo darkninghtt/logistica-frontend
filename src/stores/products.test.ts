@@ -1,8 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import * as api from '@/api/products'
 import { ApiError } from '@/api/http'
 import { useProductsStore } from './products'
+import { useStockStore } from './stock'
+import { useStockEntriesStore } from './stockEntries'
+import { CACHE_TTL_MS } from '@/composables/useTtlCache'
 import type { Product } from '@/types/product'
 
 vi.mock('@/api/products')
@@ -108,5 +111,105 @@ describe('store products', () => {
     store.clearSaveError()
 
     expect(store.saveError).toBeNull()
+  })
+})
+
+describe('caché con TTL de products', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('dos fetchPage seguidos de la misma página hacen una sola petición', async () => {
+    vi.mocked(api.listProducts).mockResolvedValue(pageOf(['A']))
+    const store = useProductsStore()
+
+    await store.fetchPage()
+    await store.fetchPage()
+
+    expect(api.listProducts).toHaveBeenCalledTimes(1)
+    expect(store.lastFetchedAt).not.toBeNull()
+    expect(store.items.map((p) => p.sku)).toEqual(['A'])
+  })
+
+  it('con force vuelve a pedir', async () => {
+    vi.mocked(api.listProducts).mockResolvedValue(pageOf(['A']))
+    const store = useProductsStore()
+
+    await store.fetchPage()
+    await store.fetchPage(1, { force: true })
+
+    expect(api.listProducts).toHaveBeenCalledTimes(2)
+  })
+
+  it('pasado el TTL vuelve a pedir', async () => {
+    vi.mocked(api.listProducts).mockResolvedValue(pageOf(['A']))
+    const store = useProductsStore()
+
+    await store.fetchPage()
+    vi.advanceTimersByTime(CACHE_TTL_MS)
+    await store.fetchPage()
+
+    expect(api.listProducts).toHaveBeenCalledTimes(2)
+  })
+
+  it('pedir otra página siempre va al servidor', async () => {
+    vi.mocked(api.listProducts).mockResolvedValue(pageOf(['A'], 1, 12))
+    const store = useProductsStore()
+
+    await store.fetchPage(1)
+    await store.fetchPage(2)
+
+    expect(api.listProducts).toHaveBeenCalledTimes(2)
+  })
+
+  it('si la carga falla no queda en caché: reintentar vuelve a pedir', async () => {
+    vi.mocked(api.listProducts)
+      .mockRejectedValueOnce(new ApiError('Sin conexión', null, null, null))
+      .mockResolvedValueOnce(pageOf(['A']))
+    const store = useProductsStore()
+
+    await store.fetchPage()
+    expect(store.status).toBe('error')
+    expect(store.lastFetchedAt).toBeNull()
+    await store.fetchPage()
+
+    expect(api.listProducts).toHaveBeenCalledTimes(2)
+    expect(store.status).toBe('success')
+  })
+
+  it('una mutación invalida la caché: save recarga aunque los datos sean recientes', async () => {
+    vi.mocked(api.createProduct).mockResolvedValue(product('B'))
+    vi.mocked(api.listProducts).mockResolvedValue(pageOf(['A']))
+    const store = useProductsStore()
+    await store.fetchPage()
+
+    await store.save({ sku: 'B', name: 'Producto B', unit: 'un' })
+
+    expect(api.listProducts).toHaveBeenCalledTimes(2)
+  })
+
+  it('una mutación que falla no invalida la caché', async () => {
+    vi.mocked(api.createProduct).mockRejectedValue(new ApiError('Ya existe', 409, null, null))
+    vi.mocked(api.listProducts).mockResolvedValue(pageOf(['A']))
+    const store = useProductsStore()
+    await store.fetchPage()
+
+    await store.save({ sku: 'A', name: 'Producto A', unit: 'un' })
+    await store.fetchPage()
+
+    expect(api.listProducts).toHaveBeenCalledTimes(1)
+  })
+
+  it('al guardar también se invalidan las opciones de stock y de entradas', async () => {
+    vi.mocked(api.createProduct).mockResolvedValue(product('B'))
+    vi.mocked(api.listProducts).mockResolvedValue(pageOf(['A']))
+    const stock = useStockStore()
+    const entries = useStockEntriesStore()
+    const invalidateStock = vi.spyOn(stock, 'invalidateOptions')
+    const invalidateEntries = vi.spyOn(entries, 'invalidateOptions')
+
+    await useProductsStore().save({ sku: 'B', name: 'Producto B', unit: 'un' })
+
+    expect(invalidateStock).toHaveBeenCalledTimes(1)
+    expect(invalidateEntries).toHaveBeenCalledTimes(1)
   })
 })

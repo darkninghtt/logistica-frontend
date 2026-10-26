@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
+import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 import type { LoginResponse } from '@/types/auth'
 import { getAccessToken, setAccessToken } from './token'
 
@@ -6,6 +6,8 @@ declare module 'axios' {
   interface AxiosRequestConfig {
     /** Marca una petición ya reintentada tras un refresh, para no reintentarla en bucle. */
     retriedAfterRefresh?: boolean
+    /** Cuántas veces se ha reintentado ya esta petición por un fallo de red o 502/503/504. */
+    networkRetries?: number
   }
 }
 
@@ -58,6 +60,22 @@ export function toApiError(err: unknown): ApiError {
 // Endpoints de sesión: un 401 aquí es una respuesta normal, no un token vencido.
 const SESSION_ENDPOINTS = ['/auth/login', '/auth/refresh', '/auth/logout']
 
+/**
+ * Reintentos automáticos de red. Solo se reintentan los GET (son idempotentes) y solo ante un fallo
+ * de red o un 502/503/504, que es lo que se ve mientras Render despierta el servicio. Un POST o PUT
+ * nunca se reintenta (podría duplicar la operación) ni tampoco un 4xx o 500: repetirlos no los arregla.
+ */
+export const retryPolicy = { maxRetries: 2, baseDelayMs: 1000 }
+const RETRYABLE_STATUSES = [502, 503, 504]
+
+function shouldRetry(err: unknown): err is AxiosError {
+  if (!axios.isAxiosError(err) || !err.config) return false
+  if (err.config.method?.toLowerCase() !== 'get') return false
+  if ((err.config.networkRetries ?? 0) >= retryPolicy.maxRetries) return false
+  if (err.response) return RETRYABLE_STATUSES.includes(err.response.status)
+  return err.code !== AxiosError.ERR_CANCELED
+}
+
 let onSessionExpired: (() => void) | null = null
 
 /** Registra qué hacer cuando la sesión no se puede renovar (limpiar el store e ir al login). */
@@ -101,6 +119,12 @@ http.interceptors.request.use(attachAuth)
 http.interceptors.response.use(
   (response) => response,
   async (err: unknown) => {
+    if (shouldRetry(err) && err.config) {
+      const attempt = err.config.networkRetries ?? 0
+      // Espera creciente: 1 s y 2 s con la configuración por defecto
+      await new Promise((resolve) => setTimeout(resolve, retryPolicy.baseDelayMs * 2 ** attempt))
+      return http({ ...err.config, networkRetries: attempt + 1 })
+    }
     const apiError = toApiError(err)
     const config = axios.isAxiosError(err) ? err.config : undefined
     const canRefresh =

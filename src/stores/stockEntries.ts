@@ -4,6 +4,8 @@ import { listProducts } from '@/api/products'
 import { createStockEntry } from '@/api/stockEntries'
 import { listWarehouses } from '@/api/warehouses'
 import { toApiError } from '@/api/http'
+import { useTtlCache } from '@/composables/useTtlCache'
+import { useStockStore } from './stock'
 import type { LoadStatus } from '@/types/api'
 import type { Product } from '@/types/product'
 import type { StockEntryInput, StockEntryResult } from '@/types/stockEntry'
@@ -21,12 +23,15 @@ export const useStockEntriesStore = defineStore('stockEntries', () => {
   const products = ref<Product[]>([])
   const optionsStatus = ref<LoadStatus>('idle')
   const optionsError = ref<string | null>(null)
+  const optionsCache = useTtlCache()
 
   const saving = ref(false)
   const saveError = ref<string | null>(null)
   const lastEntry = ref<StockEntryResult | null>(null)
 
-  async function loadOptions(): Promise<void> {
+  /** Carga las opciones del formulario. Si siguen vigentes (TTL) no las vuelve a pedir, salvo con `force`. */
+  async function loadOptions({ force = false }: { force?: boolean } = {}): Promise<void> {
+    if (!force && optionsCache.isFresh()) return
     optionsStatus.value = 'loading'
     optionsError.value = null
     try {
@@ -36,8 +41,10 @@ export const useStockEntriesStore = defineStore('stockEntries', () => {
       ])
       warehouses.value = warehousePage.data
       products.value = productPage.data
+      optionsCache.markFetched()
       optionsStatus.value = 'success'
     } catch (err) {
+      optionsCache.invalidate()
       optionsError.value = toApiError(err).message
       optionsStatus.value = 'error'
     }
@@ -49,6 +56,8 @@ export const useStockEntriesStore = defineStore('stockEntries', () => {
     saveError.value = null
     try {
       lastEntry.value = await createStockEntry(input)
+      // La entrada cambió existencias e historial: la consulta de stock debe volver a pedirlos.
+      useStockStore().invalidate()
       return true
     } catch (err) {
       saveError.value = toApiError(err).message
@@ -56,6 +65,11 @@ export const useStockEntriesStore = defineStore('stockEntries', () => {
     } finally {
       saving.value = false
     }
+  }
+
+  /** Descarta las opciones del formulario: tras crear o editar una bodega o un producto. */
+  function invalidateOptions(): void {
+    optionsCache.invalidate()
   }
 
   function clearResult(): void {
@@ -68,11 +82,13 @@ export const useStockEntriesStore = defineStore('stockEntries', () => {
     products,
     optionsStatus,
     optionsError,
+    optionsFetchedAt: optionsCache.lastFetchedAt,
     saving,
     saveError,
     lastEntry,
     loadOptions,
     register,
+    invalidateOptions,
     clearResult,
   }
 })
