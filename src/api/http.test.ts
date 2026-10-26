@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
-import { ApiError, http, refreshSession, setSessionExpiredHandler } from './http'
+import { ApiError, http, refreshSession, retryPolicy, setSessionExpiredHandler } from './http'
 import { getAccessToken, setAccessToken } from './token'
+
+// Sin espera entre reintentos para que las pruebas no tarden.
+retryPolicy.baseDelayMs = 0
 
 // Devuelve el valor del header Authorization que realmente sale en la petición.
 async function sentAuthorization(): Promise<unknown> {
@@ -298,5 +301,134 @@ describe('errores 403 y 429', () => {
     await failWith(403, { code: 'FORBIDDEN', message: 'x', correlationId: 'c' })
     expect(onExpired).not.toHaveBeenCalled()
     setSessionExpiredHandler(null)
+  })
+})
+
+describe('reintentos de red', () => {
+  let calls = 0
+
+  // Adaptador que falla `failures` veces con el fallo indicado y después responde 200.
+  function failing(failures: number, fail: (config: InternalAxiosRequestConfig) => never) {
+    calls = 0
+    return async (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
+      calls++
+      if (calls <= failures) fail(config)
+      return reply(config, 200, { ok: true })
+    }
+  }
+
+  const networkError = (config: InternalAxiosRequestConfig): never => {
+    throw new AxiosError('Network Error', 'ERR_NETWORK', config)
+  }
+  const serverError = (status: number) => (config: InternalAxiosRequestConfig) =>
+    reply(config, status, {}) as never
+
+  it('un GET con error de red se reintenta y termina bien', async () => {
+    const res = await http.get('/datos', { adapter: failing(1, networkError) })
+
+    expect(res.data).toEqual({ ok: true })
+    expect(calls).toBe(2)
+  })
+
+  it.each([502, 503, 504])('un GET con %i se reintenta', async (status) => {
+    const res = await http.get('/datos', { adapter: failing(2, serverError(status)) })
+
+    expect(res.status).toBe(200)
+    expect(calls).toBe(3)
+  })
+
+  it('reintenta como máximo 2 veces y luego rechaza con el error', async () => {
+    const err = await http
+      .get('/datos', { adapter: failing(10, serverError(503)) })
+      .catch((e: unknown) => e)
+
+    expect(calls).toBe(3)
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err).toMatchObject({ status: 503 })
+  })
+
+  it('un GET sin conexión rechaza con el aviso de conexión tras los reintentos', async () => {
+    const err = await http
+      .get('/datos', { adapter: failing(10, networkError) })
+      .catch((e: unknown) => e)
+
+    expect(calls).toBe(3)
+    expect(err).toMatchObject({ message: 'No se pudo conectar con el servidor', status: null })
+  })
+
+  it('un POST fallido no se reintenta', async () => {
+    const err = await http
+      .post('/datos', {}, { adapter: failing(10, serverError(503)) })
+      .catch((e: unknown) => e)
+
+    expect(calls).toBe(1)
+    expect(err).toMatchObject({ status: 503 })
+  })
+
+  it('un POST con error de red tampoco se reintenta', async () => {
+    await http.post('/datos', {}, { adapter: failing(10, networkError) }).catch(() => undefined)
+    expect(calls).toBe(1)
+  })
+
+  it.each([400, 404, 409, 500])('un %i no se reintenta', async (status) => {
+    await http.get('/datos', { adapter: failing(10, serverError(status)) }).catch(() => undefined)
+    expect(calls).toBe(1)
+  })
+
+  it('una petición cancelada no se reintenta', async () => {
+    const cancel = (config: InternalAxiosRequestConfig): never => {
+      throw new AxiosError('canceled', AxiosError.ERR_CANCELED, config)
+    }
+    await http.get('/datos', { adapter: failing(10, cancel) }).catch(() => undefined)
+    expect(calls).toBe(1)
+  })
+
+  it('espera más en cada reintento', async () => {
+    vi.useFakeTimers()
+    retryPolicy.baseDelayMs = 1000
+    try {
+      const pending = http.get('/datos', { adapter: failing(2, serverError(503)) })
+      await vi.advanceTimersByTimeAsync(0)
+      expect(calls).toBe(1)
+      await vi.advanceTimersByTimeAsync(999)
+      expect(calls).toBe(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(calls).toBe(2)
+      await vi.advanceTimersByTimeAsync(1999)
+      expect(calls).toBe(2)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(calls).toBe(3)
+      await expect(pending).resolves.toMatchObject({ status: 200 })
+    } finally {
+      retryPolicy.baseDelayMs = 0
+      vi.useRealTimers()
+    }
+  })
+
+  it('convive con el refresh del 401: el reintento de red no lo dispara ni lo bloquea', async () => {
+    const originalAdapter = http.defaults.adapter
+    let refreshCalls = 0
+    http.defaults.adapter = async (config) => {
+      refreshCalls++
+      return reply(config, 200, NEW_SESSION)
+    }
+    setAccessToken('viejo')
+    calls = 0
+    // Primero un fallo de red, después un 401 por token vencido, y con el token nuevo responde 200
+    const adapter = async (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => {
+      calls++
+      if (calls === 1) throw new AxiosError('Network Error', 'ERR_NETWORK', config)
+      return api(config)
+    }
+    try {
+      const res = await http.get('/datos', { adapter })
+
+      expect(res.data).toEqual({ ok: true })
+      expect(calls).toBe(3)
+      expect(refreshCalls).toBe(1)
+    } finally {
+      http.defaults.adapter = originalAdapter
+      setAccessToken(null)
+    }
   })
 })
