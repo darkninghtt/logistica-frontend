@@ -2,6 +2,9 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import * as api from '@/api/warehouses'
 import { toApiError } from '@/api/http'
+import { useTtlCache } from '@/composables/useTtlCache'
+import { useStockEntriesStore } from './stockEntries'
+import { useStockStore } from './stock'
 import type { LoadStatus } from '@/types/api'
 import type { Warehouse, WarehouseInput } from '@/types/warehouse'
 
@@ -16,6 +19,7 @@ export const useWarehousesStore = defineStore('warehouses', () => {
   const error = ref<string | null>(null)
   const saving = ref(false)
   const saveError = ref<string | null>(null)
+  const cache = useTtlCache()
 
   const items = computed<Warehouse[]>(() =>
     ids.value.flatMap((id) => {
@@ -25,7 +29,12 @@ export const useWarehousesStore = defineStore('warehouses', () => {
   )
   const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
-  async function fetchPage(target: number = page.value): Promise<void> {
+  /** Carga una página. Si ya está cargada y vigente (TTL) no vuelve a pedirla, salvo con `force`. */
+  async function fetchPage(
+    target: number = page.value,
+    { force = false }: { force?: boolean } = {},
+  ): Promise<void> {
+    if (!force && cache.isFresh(String(target))) return
     status.value = 'loading'
     error.value = null
     try {
@@ -34,8 +43,10 @@ export const useWarehousesStore = defineStore('warehouses', () => {
       ids.value = result.data.map((w) => w.id)
       page.value = result.page
       total.value = result.total
+      cache.markFetched(String(result.page))
       status.value = 'success'
     } catch (err) {
+      cache.invalidate()
       error.value = toApiError(err).message
       status.value = 'error'
     }
@@ -54,8 +65,19 @@ export const useWarehousesStore = defineStore('warehouses', () => {
     } finally {
       saving.value = false
     }
-    await fetchPage()
+    invalidate()
+    await fetchPage(page.value, { force: true })
     return true
+  }
+
+  /**
+   * Descarta la caché de este store y de los que guardan copias de estas opciones
+   * (los selectores de stock y de entradas), para que la próxima carga vaya al servidor.
+   */
+  function invalidate(): void {
+    cache.invalidate()
+    useStockStore().invalidateOptions()
+    useStockEntriesStore().invalidateOptions()
   }
 
   function clearSaveError(): void {
@@ -72,10 +94,12 @@ export const useWarehousesStore = defineStore('warehouses', () => {
     error,
     saving,
     saveError,
+    lastFetchedAt: cache.lastFetchedAt,
     items,
     totalPages,
     fetchPage,
     save,
+    invalidate,
     clearSaveError,
   }
 })

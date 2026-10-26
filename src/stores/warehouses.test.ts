@@ -1,8 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import * as api from '@/api/warehouses'
 import { ApiError } from '@/api/http'
 import { useWarehousesStore } from './warehouses'
+import { useStockStore } from './stock'
+import { useStockEntriesStore } from './stockEntries'
+import { CACHE_TTL_MS } from '@/composables/useTtlCache'
 import type { Warehouse } from '@/types/warehouse'
 
 vi.mock('@/api/warehouses')
@@ -112,5 +115,101 @@ describe('store warehouses', () => {
     store.clearSaveError()
 
     expect(store.saveError).toBeNull()
+  })
+})
+
+describe('caché con TTL de warehouses', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('dos fetchPage seguidos de la misma página hacen una sola petición', async () => {
+    vi.mocked(api.listWarehouses).mockResolvedValue(pageOf(['A']))
+    const store = useWarehousesStore()
+
+    await store.fetchPage()
+    await store.fetchPage()
+
+    expect(api.listWarehouses).toHaveBeenCalledTimes(1)
+    expect(store.lastFetchedAt).not.toBeNull()
+  })
+
+  it('con force vuelve a pedir', async () => {
+    vi.mocked(api.listWarehouses).mockResolvedValue(pageOf(['A']))
+    const store = useWarehousesStore()
+
+    await store.fetchPage()
+    await store.fetchPage(1, { force: true })
+
+    expect(api.listWarehouses).toHaveBeenCalledTimes(2)
+  })
+
+  it('pasado el TTL vuelve a pedir', async () => {
+    vi.mocked(api.listWarehouses).mockResolvedValue(pageOf(['A']))
+    const store = useWarehousesStore()
+
+    await store.fetchPage()
+    vi.advanceTimersByTime(CACHE_TTL_MS)
+    await store.fetchPage()
+
+    expect(api.listWarehouses).toHaveBeenCalledTimes(2)
+  })
+
+  it('pedir otra página siempre va al servidor', async () => {
+    vi.mocked(api.listWarehouses).mockResolvedValue(pageOf(['A'], 1, 12))
+    const store = useWarehousesStore()
+
+    await store.fetchPage(1)
+    await store.fetchPage(2)
+
+    expect(api.listWarehouses).toHaveBeenCalledTimes(2)
+  })
+
+  it('si la carga falla no queda en caché: reintentar vuelve a pedir', async () => {
+    vi.mocked(api.listWarehouses)
+      .mockRejectedValueOnce(new ApiError('Sin conexión', null, null, null))
+      .mockResolvedValueOnce(pageOf(['A']))
+    const store = useWarehousesStore()
+
+    await store.fetchPage()
+    expect(store.lastFetchedAt).toBeNull()
+    await store.fetchPage()
+
+    expect(api.listWarehouses).toHaveBeenCalledTimes(2)
+    expect(store.status).toBe('success')
+  })
+
+  it('una mutación invalida la caché: save recarga aunque los datos sean recientes', async () => {
+    vi.mocked(api.createWarehouse).mockResolvedValue(warehouse('B'))
+    vi.mocked(api.listWarehouses).mockResolvedValue(pageOf(['A']))
+    const store = useWarehousesStore()
+    await store.fetchPage()
+
+    await store.save({ code: 'B', name: 'Bodega B', active: true })
+
+    expect(api.listWarehouses).toHaveBeenCalledTimes(2)
+  })
+
+  it('una mutación que falla no invalida la caché', async () => {
+    vi.mocked(api.createWarehouse).mockRejectedValue(new ApiError('Ya existe', 409, null, null))
+    vi.mocked(api.listWarehouses).mockResolvedValue(pageOf(['A']))
+    const store = useWarehousesStore()
+    await store.fetchPage()
+
+    await store.save({ code: 'A', name: 'Bodega A', active: true })
+    await store.fetchPage()
+
+    expect(api.listWarehouses).toHaveBeenCalledTimes(1)
+  })
+
+  it('al guardar también se invalidan las opciones de stock y de entradas', async () => {
+    vi.mocked(api.createWarehouse).mockResolvedValue(warehouse('B'))
+    vi.mocked(api.listWarehouses).mockResolvedValue(pageOf(['A']))
+    const invalidateStock = vi.spyOn(useStockStore(), 'invalidateOptions')
+    const invalidateEntries = vi.spyOn(useStockEntriesStore(), 'invalidateOptions')
+
+    await useWarehousesStore().save({ code: 'B', name: 'Bodega B', active: true })
+
+    expect(invalidateStock).toHaveBeenCalledTimes(1)
+    expect(invalidateEntries).toHaveBeenCalledTimes(1)
   })
 })
