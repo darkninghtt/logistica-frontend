@@ -5,6 +5,7 @@ import { ApiError } from '@/api/http'
 import { useProductsStore } from './products'
 import { useStockStore } from './stock'
 import { useStockEntriesStore } from './stockEntries'
+import { useStockShrinkagesStore } from './stockShrinkages'
 import { CACHE_TTL_MS } from '@/composables/useTtlCache'
 import type { Product } from '@/types/product'
 
@@ -199,17 +200,19 @@ describe('caché con TTL de products', () => {
     expect(api.listProducts).toHaveBeenCalledTimes(1)
   })
 
-  it('al guardar también se invalidan las opciones de stock y de entradas', async () => {
+  it('al guardar también se invalidan las opciones de stock, de entradas y de mermas', async () => {
     vi.mocked(api.createProduct).mockResolvedValue(product('B'))
     vi.mocked(api.listProducts).mockResolvedValue(pageOf(['A']))
     const stock = useStockStore()
     const entries = useStockEntriesStore()
     const invalidateStock = vi.spyOn(stock, 'invalidateOptions')
     const invalidateEntries = vi.spyOn(entries, 'invalidateOptions')
+    const invalidateShrinkages = vi.spyOn(useStockShrinkagesStore(), 'invalidateOptions')
 
     await useProductsStore().save({ sku: 'B', name: 'Producto B', unit: 'un' })
 
     expect(invalidateStock).toHaveBeenCalledTimes(1)
     expect(invalidateEntries).toHaveBeenCalledTimes(1)
+    expect(invalidateShrinkages).toHaveBeenCalledTimes(1)
   })
 })

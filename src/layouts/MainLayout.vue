@@ -25,6 +25,7 @@ const allLinks: NavLink[] = [
   { to: '/productos', label: 'Productos' },
   { to: '/stock', label: 'Stock' },
   { to: '/stock/entrada', label: 'Entrada de stock', permission: 'stock:entry' },
+  { to: '/stock/merma', label: 'Mermas', permission: 'stock:shrinkage' },
 ]
 
 const links = computed(() =>
