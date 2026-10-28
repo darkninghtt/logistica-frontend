@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { MOVEMENT_TYPE_LABELS, formatMovementReason, signedQuantity } from '@/movements'
 import { useAuthStore } from '@/stores/auth'
 import { useStockStore } from '@/stores/stock'
 
@@ -152,6 +153,7 @@ function formatDate(iso: string): string {
                 <th>SKU</th>
                 <th>Producto</th>
                 <th>Tipo</th>
+                <th>Motivo</th>
                 <th class="num">Cantidad</th>
                 <th v-if="movementsHaveCosts" class="num">Costo unitario</th>
                 <th class="num">Saldo</th>
@@ -163,8 +165,9 @@ function formatDate(iso: string): string {
                 <td>{{ formatDate(movement.createdAt) }}</td>
                 <td>{{ movement.productSku }}</td>
                 <td>{{ movement.productName }}</td>
-                <td>{{ movement.type === 'ENTRY' ? 'Entrada' : movement.type }}</td>
-                <td class="num">{{ movement.quantity }}</td>
+                <td>{{ MOVEMENT_TYPE_LABELS[movement.type] }}</td>
+                <td>{{ formatMovementReason(movement.reason) }}</td>
+                <td class="num">{{ signedQuantity(movement.type, movement.quantity) }}</td>
                 <td v-if="movementsHaveCosts" class="num">{{ movement.unitCost }}</td>
                 <td class="num">{{ movement.balanceQty }}</td>
                 <td v-if="movementsHaveCosts" class="num">{{ movement.balanceAvgCost }}</td>
