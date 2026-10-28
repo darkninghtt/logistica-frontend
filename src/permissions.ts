@@ -11,11 +11,15 @@ export type Permission =
   | 'stock:entry'
   /** Registrar mermas de bodega (en las bodegas asignadas). */
   | 'stock:shrinkage'
+  /** Crear borradores de traspaso (desde las bodegas asignadas) y cancelar los propios. */
+  | 'transfer:create'
+  /** Despachar traspasos de las bodegas asignadas como origen. */
+  | 'transfer:dispatch'
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   ADMIN: ['catalog:write', 'stock:entry'],
-  WAREHOUSE_MANAGER: ['stock:entry', 'stock:shrinkage'],
-  OPERATOR: ['stock:shrinkage'],
+  WAREHOUSE_MANAGER: ['stock:entry', 'stock:shrinkage', 'transfer:create', 'transfer:dispatch'],
+  OPERATOR: ['stock:shrinkage', 'transfer:create'],
   AUDITOR: [],
 }
 
