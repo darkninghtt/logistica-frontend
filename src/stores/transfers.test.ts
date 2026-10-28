@@ -290,6 +290,82 @@ describe('store transfers: despachar y cancelar', () => {
   })
 })
 
+describe('store transfers: recibir y resolver', () => {
+  const input = { items: [{ productId: 'p1', receivedQuantity: 7 }] }
+
+  it('receive manda las cantidades, guarda el nuevo estado e invalida listado y stock', async () => {
+    vi.mocked(api.receiveTransfer).mockResolvedValue(detail('t1', 'DISCREPANCY'))
+    const invalidateStock = vi.spyOn(useStockStore(), 'invalidate')
+    const store = useTransfersStore()
+
+    expect(await store.receive('t1', input)).toBe(true)
+
+    expect(api.receiveTransfer).toHaveBeenCalledWith('t1', input)
+    expect(store.details['t1']?.status).toBe('DISCREPANCY')
+    expect(store.lastFetchedAt).toBeNull()
+    expect(invalidateStock).toHaveBeenCalledTimes(1)
+  })
+
+  it('una recepción repetida (409) recarga el traspaso y no invalida el stock', async () => {
+    vi.mocked(api.receiveTransfer).mockRejectedValue(
+      new ApiError('El traspaso está en RECEIVED', 409, 'INVALID_TRANSITION', 'c1'),
+    )
+    vi.mocked(api.getTransfer).mockResolvedValue(detail('t1', 'RECEIVED'))
+    const invalidateStock = vi.spyOn(useStockStore(), 'invalidate')
+    const store = useTransfersStore()
+
+    expect(await store.receive('t1', input)).toBe(false)
+
+    expect(store.actionError).toBe('El traspaso está en RECEIVED')
+    expect(store.details['t1']?.status).toBe('RECEIVED')
+    expect(invalidateStock).not.toHaveBeenCalled()
+  })
+
+  it('un segundo envío de la recepción mientras corre no manda otra petición', async () => {
+    let finish: (value: TransferDetail) => void = () => undefined
+    vi.mocked(api.receiveTransfer).mockReturnValue(new Promise((resolve) => (finish = resolve)))
+    const store = useTransfersStore()
+
+    const first = store.receive('t1', input)
+    expect(await store.receive('t1', input)).toBe(false)
+    finish(detail('t1', 'RECEIVED'))
+    await first
+
+    expect(api.receiveTransfer).toHaveBeenCalledTimes(1)
+  })
+
+  it('resolve manda el motivo e invalida el stock', async () => {
+    vi.mocked(api.resolveTransfer).mockResolvedValue(detail('t1', 'RESOLVED'))
+    const invalidateStock = vi.spyOn(useStockStore(), 'invalidate')
+    const store = useTransfersStore()
+
+    expect(await store.resolve('t1', 'Caja rota en el camión')).toBe(true)
+
+    expect(api.resolveTransfer).toHaveBeenCalledWith('t1', 'Caja rota en el camión')
+    expect(store.details['t1']?.status).toBe('RESOLVED')
+    expect(invalidateStock).toHaveBeenCalledTimes(1)
+  })
+
+  it('si resolver da 403 deja el mensaje sin recargar ni invalidar', async () => {
+    vi.mocked(api.resolveTransfer).mockRejectedValue(
+      new ApiError(
+        'Quien recibió el traspaso no puede resolver su discrepancia',
+        403,
+        'FORBIDDEN',
+        'c1',
+      ),
+    )
+    const invalidateStock = vi.spyOn(useStockStore(), 'invalidate')
+    const store = useTransfersStore()
+
+    expect(await store.resolve('t1', 'motivo')).toBe(false)
+
+    expect(store.actionError).toContain('no puede resolver')
+    expect(api.getTransfer).not.toHaveBeenCalled()
+    expect(invalidateStock).not.toHaveBeenCalled()
+  })
+})
+
 describe('store transfers: opciones del borrador', () => {
   it('el origen sale de las bodegas asignadas activas y el destino de todas', async () => {
     vi.mocked(warehousesApi.listWarehouses).mockResolvedValue({

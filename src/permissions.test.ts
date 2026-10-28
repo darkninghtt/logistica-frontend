@@ -23,6 +23,14 @@ describe('roleCan', () => {
     ['OPERATOR', 'transfer:dispatch', false],
     ['AUDITOR', 'transfer:create', false],
     ['AUDITOR', 'transfer:dispatch', false],
+    ['ADMIN', 'transfer:receive', false],
+    ['ADMIN', 'transfer:resolve', true],
+    ['WAREHOUSE_MANAGER', 'transfer:receive', true],
+    ['WAREHOUSE_MANAGER', 'transfer:resolve', true],
+    ['OPERATOR', 'transfer:receive', true],
+    ['OPERATOR', 'transfer:resolve', false],
+    ['AUDITOR', 'transfer:receive', false],
+    ['AUDITOR', 'transfer:resolve', false],
   ] as const)('%s · %s → %s', (role, permission, expected) => {
     expect(roleCan(role, permission)).toBe(expected)
   })
