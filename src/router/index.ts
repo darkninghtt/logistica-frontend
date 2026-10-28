@@ -4,6 +4,7 @@ import HomeView from '@/views/HomeView.vue'
 import LoginView from '@/views/LoginView.vue'
 import ProductsView from '@/views/ProductsView.vue'
 import StockEntryView from '@/views/StockEntryView.vue'
+import StockShrinkageView from '@/views/StockShrinkageView.vue'
 import StockView from '@/views/StockView.vue'
 import WarehousesView from '@/views/WarehousesView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
@@ -31,6 +32,11 @@ export const routes: RouteRecordRaw[] = [
       { path: 'productos', component: ProductsView },
       { path: 'stock', component: StockView },
       { path: 'stock/entrada', component: StockEntryView, meta: { permission: 'stock:entry' } },
+      {
+        path: 'stock/merma',
+        component: StockShrinkageView,
+        meta: { permission: 'stock:shrinkage' },
+      },
       { path: 'sin-permiso', component: ForbiddenView },
     ],
   },

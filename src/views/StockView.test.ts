@@ -39,6 +39,8 @@ function movement(id: string, balanceQty: number, balanceAvgCost: string): Stock
     unitCost: '120.0000',
     balanceQty,
     balanceAvgCost,
+    reason: null,
+    transferId: null,
     createdBy: 'u-1',
     createdAt: '2026-01-01T10:00:00.000Z',
     productSku: 'SKU-1',
@@ -138,10 +140,46 @@ describe('StockView', () => {
       'SKU-1',
       'Tornillo',
       'Entrada',
-      '10',
+      '',
+      '+10',
       '120.0000',
       '20',
       '110.0000',
+    ])
+  })
+
+  it('muestra los tipos nuevos en español, con el signo de la cantidad y el motivo', async () => {
+    const typed = (
+      id: string,
+      type: StockMovementItem['type'],
+      reason: string | null,
+    ): StockMovementItem => ({ ...movement(id, 10, '110.0000'), type, reason, quantity: 2 })
+    vi.mocked(stockApi.listStockMovements).mockResolvedValue(
+      pageOf([
+        typed('6', 'ADJUSTMENT_IN', 'Conteo físico al recibir'),
+        typed('5', 'TRANSIT_SHRINKAGE', 'Caja rota en el camión'),
+        typed('4', 'SHRINKAGE', 'DAMAGE: estiba caída'),
+        typed('3', 'SHRINKAGE', 'EXPIRED'),
+        typed('2', 'TRANSFER_IN', null),
+        typed('1', 'TRANSFER_OUT', null),
+      ]),
+    )
+    const wrapper = await mountView()
+    await chooseWarehouse(wrapper)
+
+    const rows = wrapper.findAll('[data-test=movements-table] tbody tr').map((row) =>
+      row
+        .findAll('td')
+        .map((c) => c.text())
+        .slice(3, 6),
+    )
+    expect(rows).toEqual([
+      ['Ajuste de entrada', 'Conteo físico al recibir', '+2'],
+      ['Merma en tránsito', 'Caja rota en el camión', '2'],
+      ['Merma', 'Daño: estiba caída', '-2'],
+      ['Merma', 'Vencimiento', '-2'],
+      ['Entrada por traspaso', '', '+2'],
+      ['Salida por traspaso', '', '-2'],
     ])
   })
 
@@ -223,6 +261,8 @@ describe('StockView según el rol (costos)', () => {
     type: 'ENTRY',
     quantity: 10,
     balanceQty: 20,
+    reason: null,
+    transferId: null,
     createdBy: 'u-1',
     createdAt: '2026-01-01T10:00:00.000Z',
     productSku: 'SKU-1',

@@ -9,11 +9,13 @@ export type Permission =
   | 'catalog:write'
   /** Registrar entradas de stock. */
   | 'stock:entry'
+  /** Registrar mermas de bodega (en las bodegas asignadas). */
+  | 'stock:shrinkage'
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   ADMIN: ['catalog:write', 'stock:entry'],
-  WAREHOUSE_MANAGER: ['stock:entry'],
-  OPERATOR: [],
+  WAREHOUSE_MANAGER: ['stock:entry', 'stock:shrinkage'],
+  OPERATOR: ['stock:shrinkage'],
   AUDITOR: [],
 }
 

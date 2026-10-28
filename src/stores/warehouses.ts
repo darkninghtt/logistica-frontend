@@ -4,6 +4,7 @@ import * as api from '@/api/warehouses'
 import { toApiError } from '@/api/http'
 import { useTtlCache } from '@/composables/useTtlCache'
 import { useStockEntriesStore } from './stockEntries'
+import { useStockShrinkagesStore } from './stockShrinkages'
 import { useStockStore } from './stock'
 import type { LoadStatus } from '@/types/api'
 import type { Warehouse, WarehouseInput } from '@/types/warehouse'
@@ -72,12 +73,13 @@ export const useWarehousesStore = defineStore('warehouses', () => {
 
   /**
    * Descarta la caché de este store y de los que guardan copias de estas opciones
-   * (los selectores de stock y de entradas), para que la próxima carga vaya al servidor.
+   * (los selectores de stock, de entradas y de mermas), para que la próxima carga vaya al servidor.
    */
   function invalidate(): void {
     cache.invalidate()
     useStockStore().invalidateOptions()
     useStockEntriesStore().invalidateOptions()
+    useStockShrinkagesStore().invalidateOptions()
   }
 
   function clearSaveError(): void {

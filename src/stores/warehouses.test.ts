@@ -5,6 +5,7 @@ import { ApiError } from '@/api/http'
 import { useWarehousesStore } from './warehouses'
 import { useStockStore } from './stock'
 import { useStockEntriesStore } from './stockEntries'
+import { useStockShrinkagesStore } from './stockShrinkages'
 import { CACHE_TTL_MS } from '@/composables/useTtlCache'
 import type { Warehouse } from '@/types/warehouse'
 
@@ -201,15 +202,17 @@ describe('caché con TTL de warehouses', () => {
     expect(api.listWarehouses).toHaveBeenCalledTimes(1)
   })
 
-  it('al guardar también se invalidan las opciones de stock y de entradas', async () => {
+  it('al guardar también se invalidan las opciones de stock, de entradas y de mermas', async () => {
     vi.mocked(api.createWarehouse).mockResolvedValue(warehouse('B'))
     vi.mocked(api.listWarehouses).mockResolvedValue(pageOf(['A']))
     const invalidateStock = vi.spyOn(useStockStore(), 'invalidateOptions')
     const invalidateEntries = vi.spyOn(useStockEntriesStore(), 'invalidateOptions')
+    const invalidateShrinkages = vi.spyOn(useStockShrinkagesStore(), 'invalidateOptions')
 
     await useWarehousesStore().save({ code: 'B', name: 'Bodega B', active: true })
 
     expect(invalidateStock).toHaveBeenCalledTimes(1)
     expect(invalidateEntries).toHaveBeenCalledTimes(1)
+    expect(invalidateShrinkages).toHaveBeenCalledTimes(1)
   })
 })
