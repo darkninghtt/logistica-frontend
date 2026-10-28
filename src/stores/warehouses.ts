@@ -5,6 +5,7 @@ import { toApiError } from '@/api/http'
 import { useTtlCache } from '@/composables/useTtlCache'
 import { useStockEntriesStore } from './stockEntries'
 import { useStockShrinkagesStore } from './stockShrinkages'
+import { useTransfersStore } from './transfers'
 import { useStockStore } from './stock'
 import type { LoadStatus } from '@/types/api'
 import type { Warehouse, WarehouseInput } from '@/types/warehouse'
@@ -80,6 +81,7 @@ export const useWarehousesStore = defineStore('warehouses', () => {
     useStockStore().invalidateOptions()
     useStockEntriesStore().invalidateOptions()
     useStockShrinkagesStore().invalidateOptions()
+    useTransfersStore().invalidateOptions()
   }
 
   function clearSaveError(): void {
