@@ -15,11 +15,25 @@ export type Permission =
   | 'transfer:create'
   /** Despachar traspasos de las bodegas asignadas como origen. */
   | 'transfer:dispatch'
+  /** Registrar la recepción de traspasos cuyo destino es una bodega asignada. */
+  | 'transfer:receive'
+  /**
+   * Resolver discrepancias: el ADMIN cualquiera; el jefe, si el origen o el destino es suyo. Quien
+   * recibió nunca resuelve (separación de funciones), y eso se comprueba aparte, no por rol.
+   */
+  | 'transfer:resolve'
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
-  ADMIN: ['catalog:write', 'stock:entry'],
-  WAREHOUSE_MANAGER: ['stock:entry', 'stock:shrinkage', 'transfer:create', 'transfer:dispatch'],
-  OPERATOR: ['stock:shrinkage', 'transfer:create'],
+  ADMIN: ['catalog:write', 'stock:entry', 'transfer:resolve'],
+  WAREHOUSE_MANAGER: [
+    'stock:entry',
+    'stock:shrinkage',
+    'transfer:create',
+    'transfer:dispatch',
+    'transfer:receive',
+    'transfer:resolve',
+  ],
+  OPERATOR: ['stock:shrinkage', 'transfer:create', 'transfer:receive'],
   AUDITOR: [],
 }
 

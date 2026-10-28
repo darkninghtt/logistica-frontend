@@ -216,7 +216,9 @@ describe('TransferDetailView: botones según permiso y estado', () => {
     'en %s no hay despachar ni cancelar',
     async (status) => {
       vi.mocked(api.getTransfer).mockResolvedValue(transfer(status))
-      expect(buttonLabels(await mountView('WAREHOUSE_MANAGER'))).toEqual([])
+      const labels = buttonLabels(await mountView('WAREHOUSE_MANAGER'))
+      expect(labels).not.toContain('Despachar')
+      expect(labels).not.toContain('Cancelar traspaso')
     },
   )
 })
@@ -331,5 +333,153 @@ describe('TransferDetailView: cancelar', () => {
 
     expect(wrapper.find('form.cancel').exists()).toBe(false)
     expect(api.cancelTransfer).not.toHaveBeenCalled()
+  })
+})
+
+/** Traspaso ya recibido con faltante: se enviaron 8 y llegaron 7. */
+function withShortage(
+  status: 'DISCREPANCY' | 'RESOLVED',
+  receivedBy = 'u-receptor',
+): TransferDetail {
+  return transfer(status, {
+    receivedBy,
+    receivedAt: '2026-01-02T00:00:00.000Z',
+    items: [{ ...item('110.0000'), quantityReceived: 7 }],
+  })
+}
+
+describe('TransferDetailView: recibir', () => {
+  it('el jefe y el operario del destino ven el formulario en tránsito', async () => {
+    assignedTo('B')
+    vi.mocked(api.getTransfer).mockResolvedValue(transfer('IN_TRANSIT'))
+    expect(buttonLabels(await mountView('WAREHOUSE_MANAGER'))).toEqual(['Registrar recepción'])
+    expect(buttonLabels(await mountView('OPERATOR'))).toEqual(['Registrar recepción'])
+  })
+
+  it('no se ofrece a quien solo tiene el origen, ni al ADMIN ni al AUDITOR', async () => {
+    vi.mocked(api.getTransfer).mockResolvedValue(transfer('IN_TRANSIT'))
+    expect(buttonLabels(await mountView('WAREHOUSE_MANAGER'))).toEqual([])
+    assignedTo('A', 'B')
+    expect(buttonLabels(await mountView('ADMIN'))).toEqual([])
+    expect(buttonLabels(await mountView('AUDITOR'))).toEqual([])
+  })
+
+  it.each(['DRAFT', 'RECEIVED', 'DISCREPANCY', 'RESOLVED', 'CANCELLED'] as const)(
+    'en %s no se ofrece la recepción',
+    async (status) => {
+      assignedTo('B')
+      vi.mocked(api.getTransfer).mockResolvedValue(transfer(status))
+      expect(buttonLabels(await mountView('OPERATOR', 'otra-persona'))).not.toContain(
+        'Registrar recepción',
+      )
+    },
+  )
+
+  it('con faltante manda lo contado y muestra la discrepancia', async () => {
+    assignedTo('B')
+    vi.mocked(api.getTransfer).mockResolvedValue(transfer('IN_TRANSIT'))
+    vi.mocked(api.receiveTransfer).mockResolvedValue(withShortage('DISCREPANCY', USER))
+    const wrapper = await mountView('OPERATOR')
+
+    await wrapper.find('input[name=received-p1]').setValue('7')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(api.receiveTransfer).toHaveBeenCalledWith('t1', {
+      items: [{ productId: 'p1', receivedQuantity: 7 }],
+    })
+    expect(wrapper.find('[data-test=status]').text()).toBe('Con discrepancia')
+    const discrepancy = wrapper.find('[data-test=discrepancy]')
+    expect(discrepancy.text()).toContain('Discrepancia pendiente')
+    expect(discrepancy.text()).toContain('Faltante: merma en tránsito de 1 u')
+    expect(wrapper.find('form').exists()).toBe(false)
+  })
+
+  it('una recepción repetida (409) muestra el mensaje y el estado real', async () => {
+    assignedTo('B')
+    vi.mocked(api.getTransfer).mockResolvedValueOnce(transfer('IN_TRANSIT'))
+    vi.mocked(api.receiveTransfer).mockRejectedValue(
+      new ApiError('El traspaso ya fue recibido', 409, 'INVALID_TRANSITION', 'c1'),
+    )
+    const wrapper = await mountView('OPERATOR')
+    vi.mocked(api.getTransfer).mockResolvedValue(
+      transfer('RECEIVED', { items: [{ ...item(), quantityReceived: 8 }] }),
+    )
+
+    await wrapper.find('input[name=received-p1]').setValue('8')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.find('[role=alert]').text()).toContain('El traspaso ya fue recibido')
+    expect(wrapper.find('[data-test=status]').text()).toBe('Recibido')
+    expect(buttonLabels(wrapper)).toEqual([])
+  })
+})
+
+describe('TransferDetailView: resolver', () => {
+  it('un jefe distinto del que recibió ve la acción (origen o destino)', async () => {
+    vi.mocked(api.getTransfer).mockResolvedValue(withShortage('DISCREPANCY'))
+    expect(buttonLabels(await mountView('WAREHOUSE_MANAGER'))).toEqual(['Resolver discrepancia'])
+    assignedTo('B')
+    expect(buttonLabels(await mountView('WAREHOUSE_MANAGER'))).toEqual(['Resolver discrepancia'])
+  })
+
+  it('el ADMIN la ve aunque no tenga bodegas asignadas', async () => {
+    assignedTo()
+    vi.mocked(api.getTransfer).mockResolvedValue(withShortage('DISCREPANCY'))
+    expect(buttonLabels(await mountView('ADMIN'))).toEqual(['Resolver discrepancia'])
+  })
+
+  it('quien recibió no ve la acción y se le explica por qué', async () => {
+    assignedTo('B')
+    vi.mocked(api.getTransfer).mockResolvedValue(withShortage('DISCREPANCY', USER))
+    const wrapper = await mountView('WAREHOUSE_MANAGER', USER)
+
+    expect(buttonLabels(wrapper)).toEqual([])
+    expect(wrapper.find('[data-test=receiver-note]').exists()).toBe(true)
+    expect(wrapper.find('[data-test=discrepancy]').exists()).toBe(true)
+  })
+
+  it('no la ven el operario, el AUDITOR ni un jefe sin el origen ni el destino', async () => {
+    vi.mocked(api.getTransfer).mockResolvedValue(withShortage('DISCREPANCY'))
+    expect(buttonLabels(await mountView('OPERATOR'))).toEqual([])
+    expect(buttonLabels(await mountView('AUDITOR'))).toEqual([])
+    assignedTo()
+    expect(buttonLabels(await mountView('WAREHOUSE_MANAGER'))).toEqual([])
+  })
+
+  it('resuelve con el motivo y muestra la discrepancia como resuelta', async () => {
+    vi.mocked(api.getTransfer).mockResolvedValue(withShortage('DISCREPANCY'))
+    vi.mocked(api.resolveTransfer).mockResolvedValue(withShortage('RESOLVED'))
+    const wrapper = await mountView('WAREHOUSE_MANAGER')
+
+    await wrapper.find('textarea[name=resolveReason]').setValue('Caja rota en el camión')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(api.resolveTransfer).toHaveBeenCalledWith('t1', 'Caja rota en el camión')
+    expect(wrapper.find('[data-test=status]').text()).toBe('Resuelto')
+    expect(wrapper.find('[data-test=discrepancy]').text()).toContain('Discrepancia resuelta')
+    expect(buttonLabels(wrapper)).toEqual([])
+  })
+
+  it('si la API lo rechaza (403) muestra su mensaje', async () => {
+    vi.mocked(api.getTransfer).mockResolvedValue(withShortage('DISCREPANCY'))
+    vi.mocked(api.resolveTransfer).mockRejectedValue(
+      new ApiError(
+        'Quien recibió el traspaso no puede resolver su discrepancia',
+        403,
+        'FORBIDDEN',
+        'c1',
+      ),
+    )
+    const wrapper = await mountView('WAREHOUSE_MANAGER')
+
+    await wrapper.find('textarea[name=resolveReason]').setValue('motivo')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.find('[role=alert]').text()).toContain('no puede resolver')
+    expect(wrapper.find('[data-test=status]').text()).toBe('Con discrepancia')
   })
 })

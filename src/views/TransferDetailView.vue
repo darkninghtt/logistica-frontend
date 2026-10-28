@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import TransferDiscrepancy from '@/components/TransferDiscrepancy.vue'
+import TransferReceiveForm from '@/components/TransferReceiveForm.vue'
+import TransferResolveForm from '@/components/TransferResolveForm.vue'
 import { TRANSFER_STATUS_LABELS } from '@/transfers'
 import { useAuthStore } from '@/stores/auth'
 import { useTransfersStore } from '@/stores/transfers'
+import type { TransferReceiveInput } from '@/types/transfer'
 
 const auth = useAuthStore()
 const store = useTransfersStore()
@@ -21,10 +25,13 @@ const hasReceived = computed(() =>
   detail.value?.items.some((item) => item.quantityReceived !== null),
 )
 
-// Despachar y cancelar son de la bodega de origen: solo se ofrecen si está entre las asignadas
-const ownsOrigin = computed(() =>
-  store.origins.some((warehouse) => warehouse.id === detail.value?.origin.id),
-)
+// `store.origins` son las bodegas asignadas a quien mira. Despachar y cancelar son del origen;
+// recibir, del destino; resolver, del jefe de cualquiera de las dos.
+function isAssigned(warehouseId: string | undefined): boolean {
+  return store.origins.some((warehouse) => warehouse.id === warehouseId)
+}
+const ownsOrigin = computed(() => isAssigned(detail.value?.origin.id))
+const ownsDestination = computed(() => isAssigned(detail.value?.destination.id))
 
 // Botones por permiso, bodega y estado (comodidad: la API repite la comprobación y responde 403)
 const canDispatch = computed(
@@ -37,6 +44,24 @@ const canCancel = computed(() => {
   // El operario solo cancela los traspasos que él creó
   return auth.user?.role !== 'OPERATOR' || transfer.createdBy === auth.user.id
 })
+
+const canReceive = computed(
+  () =>
+    auth.can('transfer:receive') && ownsDestination.value && detail.value?.status === 'IN_TRANSIT',
+)
+
+// Separación de funciones: quien registró la recepción no puede resolver su discrepancia
+const isReceiver = computed(
+  () => detail.value?.receivedBy !== null && detail.value?.receivedBy === auth.user?.id,
+)
+const canResolve = computed(() => {
+  if (detail.value?.status !== 'DISCREPANCY' || !auth.can('transfer:resolve')) return false
+  if (isReceiver.value) return false
+  return auth.user?.role === 'ADMIN' || ownsOrigin.value || ownsDestination.value
+})
+const showDiscrepancy = computed(
+  () => detail.value?.status === 'DISCREPANCY' || detail.value?.status === 'RESOLVED',
+)
 
 const cancelling = ref(false)
 const reason = ref('')
@@ -65,6 +90,14 @@ async function onCancel(): Promise<void> {
     cancelling.value = false
     reason.value = ''
   }
+}
+
+async function onReceive(input: TransferReceiveInput): Promise<void> {
+  await store.receive(id.value, input)
+}
+
+async function onResolve(reason: string): Promise<void> {
+  await store.resolve(id.value, reason)
 }
 
 function formatDate(iso: string): string {
@@ -152,6 +185,27 @@ function formatDate(iso: string): string {
         </tbody>
       </table>
 
+      <TransferReceiveForm
+        v-if="canReceive"
+        :key="detail.id"
+        :items="detail.items"
+        :saving="store.acting"
+        @submit="onReceive"
+      />
+
+      <template v-if="showDiscrepancy">
+        <TransferDiscrepancy :items="detail.items" :resolved="detail.status === 'RESOLVED'" />
+        <TransferResolveForm v-if="canResolve" :saving="store.acting" @submit="onResolve" />
+        <p
+          v-else-if="detail.status === 'DISCREPANCY' && isReceiver"
+          class="hint"
+          data-test="receiver-note"
+        >
+          Tú registraste la recepción: la discrepancia la resuelve otra persona (el ADMIN o un jefe
+          del origen o del destino).
+        </p>
+      </template>
+
       <h2>Historial</h2>
       <ol class="events">
         <li v-for="(event, index) in detail.events" :key="index">
@@ -191,6 +245,9 @@ function formatDate(iso: string): string {
 }
 .field-error {
   color: #b91c1c;
+}
+.hint {
+  color: #4b5563;
 }
 .summary {
   display: grid;

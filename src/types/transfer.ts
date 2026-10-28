@@ -68,6 +68,11 @@ export interface TransferInput {
   note?: string
 }
 
+/** Cuerpo de POST /api/transfers/:id/receive: la cantidad recibida de todos los ítems. */
+export interface TransferReceiveInput {
+  items: { productId: string; receivedQuantity: number }[]
+}
+
 /** Filtros del listado; cadena vacía = sin filtro. */
 export interface TransferFilters {
   status: TransferStatus | ''

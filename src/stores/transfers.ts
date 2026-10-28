@@ -12,6 +12,7 @@ import type {
   TransferDetail,
   TransferFilters,
   TransferInput,
+  TransferReceiveInput,
   TransferSummary,
   WarehouseRef,
 } from '@/types/transfer'
@@ -21,7 +22,8 @@ const OPTIONS_PAGE_SIZE = 100
 
 /**
  * Store del dominio "traspasos": el listado normalizado (`byId` + `ids` de la página actual), el
- * detalle de los traspasos consultados, las acciones (crear, cancelar, despachar) y las opciones
+ * detalle de los traspasos consultados, las acciones (crear, cancelar, despachar, recibir y
+ * resolver) y las opciones
  * del formulario de borrador.
  */
 export const useTransfersStore = defineStore('transfers', () => {
@@ -44,7 +46,7 @@ export const useTransfersStore = defineStore('transfers', () => {
   const detailCache = useTtlCache()
   let detailRequest = 0
 
-  // Acciones sobre un traspaso (cancelar, despachar) y creación del borrador
+  // Acciones sobre un traspaso (cancelar, despachar, recibir, resolver) y creación del borrador
   const acting = ref(false)
   const actionError = ref<string | null>(null)
   const saving = ref(false)
@@ -202,6 +204,20 @@ export const useTransfersStore = defineStore('transfers', () => {
     return done
   }
 
+  /** Recibe: entra stock al destino (y cambia su CPP), así que también descarta la caché de stock. */
+  async function receive(id: string, input: TransferReceiveInput): Promise<boolean> {
+    const done = await act(id, () => api.receiveTransfer(id, input))
+    if (done) useStockStore().invalidate()
+    return done
+  }
+
+  /** Resuelve la discrepancia: el sobrante entra al destino, así que también descarta la de stock. */
+  async function resolve(id: string, reason: string): Promise<boolean> {
+    const done = await act(id, () => api.resolveTransfer(id, reason))
+    if (done) useStockStore().invalidate()
+    return done
+  }
+
   /**
    * Bodegas de origen (las asignadas y activas: la API del listado ya filtra por asignación) y de
    * destino (todas las activas).
@@ -316,6 +332,8 @@ export const useTransfersStore = defineStore('transfers', () => {
     create,
     cancel,
     dispatch,
+    receive,
+    resolve,
     loadOptions,
     loadWarehouses,
     cancelPending,
