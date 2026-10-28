@@ -6,6 +6,9 @@ import ProductsView from '@/views/ProductsView.vue'
 import StockEntryView from '@/views/StockEntryView.vue'
 import StockShrinkageView from '@/views/StockShrinkageView.vue'
 import StockView from '@/views/StockView.vue'
+import TransferDetailView from '@/views/TransferDetailView.vue'
+import TransferNewView from '@/views/TransferNewView.vue'
+import TransfersView from '@/views/TransfersView.vue'
 import WarehousesView from '@/views/WarehousesView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
 import ForbiddenView from '@/views/ForbiddenView.vue'
@@ -37,6 +40,13 @@ export const routes: RouteRecordRaw[] = [
         component: StockShrinkageView,
         meta: { permission: 'stock:shrinkage' },
       },
+      { path: 'traspasos', component: TransfersView },
+      {
+        path: 'traspasos/nuevo',
+        component: TransferNewView,
+        meta: { permission: 'transfer:create' },
+      },
+      { path: 'traspasos/:id', component: TransferDetailView },
       { path: 'sin-permiso', component: ForbiddenView },
     ],
   },

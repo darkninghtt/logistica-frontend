@@ -22,7 +22,14 @@ describe('MainLayout', () => {
     await router.isReady()
     const wrapper = mount(MainLayout, { global: { plugins: [piniaSignedInAs('ADMIN'), router] } })
     const texts = wrapper.findAll('nav a').map((a) => a.text())
-    expect(texts).toEqual(['Inicio', 'Bodegas', 'Productos', 'Stock', 'Entrada de stock'])
+    expect(texts).toEqual([
+      'Inicio',
+      'Bodegas',
+      'Productos',
+      'Stock',
+      'Entrada de stock',
+      'Traspasos',
+    ])
   })
 
   it('el botón Cerrar sesión cierra la sesión en el servidor y vuelve al login', async () => {
@@ -61,13 +68,13 @@ describe('MainLayout: menú según el rol', () => {
   }
 
   it.each([
-    ['ADMIN', ['Inicio', 'Bodegas', 'Productos', 'Stock', 'Entrada de stock']],
+    ['ADMIN', ['Inicio', 'Bodegas', 'Productos', 'Stock', 'Entrada de stock', 'Traspasos']],
     [
       'WAREHOUSE_MANAGER',
-      ['Inicio', 'Bodegas', 'Productos', 'Stock', 'Entrada de stock', 'Mermas'],
+      ['Inicio', 'Bodegas', 'Productos', 'Stock', 'Entrada de stock', 'Mermas', 'Traspasos'],
     ],
-    ['OPERATOR', ['Inicio', 'Bodegas', 'Productos', 'Stock', 'Mermas']],
-    ['AUDITOR', ['Inicio', 'Bodegas', 'Productos', 'Stock']],
+    ['OPERATOR', ['Inicio', 'Bodegas', 'Productos', 'Stock', 'Mermas', 'Traspasos']],
+    ['AUDITOR', ['Inicio', 'Bodegas', 'Productos', 'Stock', 'Traspasos']],
   ] as const)('%s ve %j', async (role, expected) => {
     expect(await linksFor(role)).toEqual(expected)
   })
