@@ -162,6 +162,16 @@ export const useStockStore = defineStore('stock', () => {
     await Promise.all([fetchLevels(1), fetchMovements(1)])
   }
 
+  /**
+   * Hace que las respuestas que sigan en vuelo se descarten al llegar. Lo usa el plugin que vacía
+   * los stores al cerrar la sesión: sin esto, una respuesta pedida por la persona anterior (con
+   * costos) volvería a llenar el store después de vaciarlo.
+   */
+  function cancelPending(): void {
+    levelsRequest++
+    movementsRequest++
+  }
+
   /** Descarta existencias e historial: tras mover stock (una entrada, un traspaso, una merma). */
   function invalidate(): void {
     levelsCache.invalidate()
@@ -208,5 +218,6 @@ export const useStockStore = defineStore('stock', () => {
     selectProduct,
     invalidate,
     invalidateOptions,
+    cancelPending,
   }
 })
