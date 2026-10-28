@@ -35,6 +35,8 @@ function movement(id: string, sku = 'A'): StockMovementItem {
     unitCost: '120.0000',
     balanceQty: 20,
     balanceAvgCost: '110.0000',
+    reason: null,
+    transferId: null,
     createdBy: 'u-1',
     createdAt: '2026-01-01T00:00:00.000Z',
     productSku: sku,

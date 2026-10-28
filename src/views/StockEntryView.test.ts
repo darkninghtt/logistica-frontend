@@ -95,6 +95,8 @@ describe('StockEntryView', () => {
         unitCost: '120.0000',
         balanceQty: 20,
         balanceAvgCost: '110.0000',
+        reason: null,
+        transferId: null,
         createdBy: 'u1',
         createdAt: '',
       },

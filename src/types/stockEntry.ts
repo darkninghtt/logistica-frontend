@@ -15,16 +15,24 @@ export interface StockLevel {
   totalValue: string
 }
 
+/** Tipos de movimiento del libro (ver CLAUDE.md, sección 5). */
+export type MovementType =
+  'ENTRY' | 'TRANSFER_OUT' | 'TRANSFER_IN' | 'SHRINKAGE' | 'TRANSIT_SHRINKAGE' | 'ADJUSTMENT_IN'
+
 /** Fila del libro de movimientos, con el saldo y el costo promedio resultantes. */
 export interface StockMovement {
   id: string
   productId: string
   warehouseId: string
-  type: 'ENTRY'
+  type: MovementType
   quantity: number
   unitCost: string
   balanceQty: number
   balanceAvgCost: string
+  /** Motivo (mermas y ajustes); null si el movimiento no lo lleva. */
+  reason: string | null
+  /** Traspaso que originó el movimiento; null si no viene de uno. */
+  transferId: string | null
   createdBy: string
   createdAt: string
 }
