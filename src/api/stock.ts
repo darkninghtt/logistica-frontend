@@ -1,4 +1,4 @@
-import type { Page } from '@/types/api'
+import type { CursorPage, Page } from '@/types/api'
 import type { StockLevelItem, StockMovementItem } from '@/types/stock'
 import { http } from './http'
 
@@ -13,15 +13,18 @@ export async function listStockLevels(
   return res.data
 }
 
-/** Si `productId` es undefined, axios omite el parámetro y el historial es de toda la bodega. */
+/**
+ * Historial del más nuevo al más antiguo, paginado por cursor. Si `productId` o `cursor` son
+ * undefined, axios omite el parámetro (toda la bodega, primera página).
+ */
 export async function listStockMovements(
   warehouseId: string,
   productId: string | undefined,
-  page: number,
-  pageSize: number,
-): Promise<Page<StockMovementItem>> {
-  const res = await http.get<Page<StockMovementItem>>('/stock/movements', {
-    params: { warehouseId, productId, page, pageSize },
+  limit: number,
+  cursor?: string,
+): Promise<CursorPage<StockMovementItem>> {
+  const res = await http.get<CursorPage<StockMovementItem>>('/stock/movements', {
+    params: { warehouseId, productId, limit, cursor },
   })
   return res.data
 }

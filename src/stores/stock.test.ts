@@ -48,6 +48,10 @@ function pageOf<T>(data: T[], page = 1, total = data.length) {
   return { data, page, pageSize: 10, total }
 }
 
+function cursorPageOf<T>(data: T[], nextCursor: string | null = null) {
+  return { data, nextCursor }
+}
+
 beforeEach(() => {
   setActivePinia(createPinia())
   vi.resetAllMocks()
@@ -94,35 +98,35 @@ describe('store stock', () => {
   it('selectWarehouse carga existencias e historial de esa bodega', async () => {
     vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([level('A', 20)], 1, 11))
     vi.mocked(stockApi.listStockMovements).mockResolvedValue(
-      pageOf([movement('2'), movement('1')], 1, 2),
+      cursorPageOf([movement('2'), movement('1')]),
     )
     const store = useStockStore()
 
     await store.selectWarehouse('w-1')
 
     expect(stockApi.listStockLevels).toHaveBeenCalledWith('w-1', 1, 10)
-    expect(stockApi.listStockMovements).toHaveBeenCalledWith('w-1', undefined, 1, 10)
+    expect(stockApi.listStockMovements).toHaveBeenCalledWith('w-1', undefined, 10)
     expect(store.levelsStatus).toBe('success')
     expect(store.levels.map((l) => l.productSku)).toEqual(['A'])
     expect(store.levelsPages).toBe(2)
     expect(store.movements.map((m) => m.id)).toEqual(['2', '1'])
-    expect(store.movementsTotal).toBe(2)
+    expect(store.hasMoreMovements).toBe(false)
   })
 
-  it('selectProduct filtra el historial y vuelve a la página 1', async () => {
+  it('selectProduct filtra el historial y vuelve a la primera página', async () => {
     vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([]))
-    vi.mocked(stockApi.listStockMovements).mockResolvedValue(pageOf([movement('1')]))
+    vi.mocked(stockApi.listStockMovements).mockResolvedValue(cursorPageOf([movement('1')]))
     const store = useStockStore()
     await store.selectWarehouse('w-1')
 
     await store.selectProduct('p-A')
 
-    expect(stockApi.listStockMovements).toHaveBeenLastCalledWith('w-1', 'p-A', 1, 10)
+    expect(stockApi.listStockMovements).toHaveBeenLastCalledWith('w-1', 'p-A', 10)
   })
 
   it('al cambiar de bodega se reinicia el filtro de producto', async () => {
     vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([]))
-    vi.mocked(stockApi.listStockMovements).mockResolvedValue(pageOf([]))
+    vi.mocked(stockApi.listStockMovements).mockResolvedValue(cursorPageOf([]))
     const store = useStockStore()
     await store.selectWarehouse('w-1')
     await store.selectProduct('p-A')
@@ -130,12 +134,12 @@ describe('store stock', () => {
     await store.selectWarehouse('w-2')
 
     expect(store.productId).toBe('')
-    expect(stockApi.listStockMovements).toHaveBeenLastCalledWith('w-2', undefined, 1, 10)
+    expect(stockApi.listStockMovements).toHaveBeenLastCalledWith('w-2', undefined, 10)
   })
 
   it('deseleccionar la bodega vacía las listas y no consulta la API', async () => {
     vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([level('A')]))
-    vi.mocked(stockApi.listStockMovements).mockResolvedValue(pageOf([movement('1')]))
+    vi.mocked(stockApi.listStockMovements).mockResolvedValue(cursorPageOf([movement('1')]))
     const store = useStockStore()
     await store.selectWarehouse('w-1')
     vi.mocked(stockApi.listStockLevels).mockClear()
@@ -152,7 +156,7 @@ describe('store stock', () => {
     vi.mocked(stockApi.listStockLevels).mockRejectedValue(
       new ApiError('La bodega no existe', 404, 'NOT_FOUND', 'x'),
     )
-    vi.mocked(stockApi.listStockMovements).mockResolvedValue(pageOf([movement('1')]))
+    vi.mocked(stockApi.listStockMovements).mockResolvedValue(cursorPageOf([movement('1')]))
     const store = useStockStore()
 
     await store.selectWarehouse('w-1')
@@ -176,16 +180,64 @@ describe('store stock', () => {
     expect(store.levelsStatus).toBe('success')
   })
 
-  it('fetchMovements pide la página indicada', async () => {
+  it('loadMoreMovements pide la página siguiente con el cursor y la agrega al final', async () => {
     vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([]))
-    vi.mocked(stockApi.listStockMovements).mockResolvedValue(pageOf([movement('1')], 2, 11))
+    vi.mocked(stockApi.listStockMovements)
+      .mockResolvedValueOnce(cursorPageOf([movement('9'), movement('8')], 'c-8'))
+      .mockResolvedValueOnce(cursorPageOf([movement('7')], null))
+    const store = useStockStore()
+    await store.selectWarehouse('w-1')
+    expect(store.hasMoreMovements).toBe(true)
+
+    await store.loadMoreMovements()
+
+    expect(stockApi.listStockMovements).toHaveBeenLastCalledWith('w-1', undefined, 10, 'c-8')
+    expect(store.movements.map((m) => m.id)).toEqual(['9', '8', '7'])
+    expect(store.hasMoreMovements).toBe(false)
+    expect(store.moreMovementsStatus).toBe('success')
+
+    // Sin cursor ya no pide nada
+    await store.loadMoreMovements()
+    expect(stockApi.listStockMovements).toHaveBeenCalledTimes(2)
+  })
+
+  it('si "Cargar más" falla, conserva lo ya cargado y el cursor para reintentar', async () => {
+    vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([]))
+    vi.mocked(stockApi.listStockMovements)
+      .mockResolvedValueOnce(cursorPageOf([movement('9')], 'c-9'))
+      .mockRejectedValueOnce(new ApiError('Sin conexión', null, null, null))
+      .mockResolvedValueOnce(cursorPageOf([movement('8')], null))
     const store = useStockStore()
     await store.selectWarehouse('w-1')
 
-    await store.fetchMovements(2)
+    await store.loadMoreMovements()
+    expect(store.moreMovementsStatus).toBe('error')
+    expect(store.moreMovementsError).toBe('Sin conexión')
+    expect(store.movementsStatus).toBe('success')
+    expect(store.movements.map((m) => m.id)).toEqual(['9'])
 
-    expect(stockApi.listStockMovements).toHaveBeenLastCalledWith('w-1', undefined, 2, 10)
-    expect(store.movementsPage).toBe(2)
+    await store.loadMoreMovements()
+    expect(stockApi.listStockMovements).toHaveBeenLastCalledWith('w-1', undefined, 10, 'c-9')
+    expect(store.movements.map((m) => m.id)).toEqual(['9', '8'])
+  })
+
+  it('descarta una página de "Cargar más" que llega después de cambiar de producto', async () => {
+    let resolveMore: (value: ReturnType<typeof cursorPageOf<StockMovementItem>>) => void = () =>
+      undefined
+    vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([]))
+    vi.mocked(stockApi.listStockMovements)
+      .mockResolvedValueOnce(cursorPageOf([movement('9')], 'c-9'))
+      .mockReturnValueOnce(new Promise((resolve) => (resolveMore = resolve)))
+      .mockResolvedValueOnce(cursorPageOf([movement('5', 'B')], null))
+    const store = useStockStore()
+    await store.selectWarehouse('w-1')
+
+    const more = store.loadMoreMovements()
+    await store.selectProduct('p-B')
+    resolveMore(cursorPageOf([movement('8')], null))
+    await more
+
+    expect(store.movements.map((m) => m.id)).toEqual(['5'])
   })
 
   it('ignora la respuesta de una bodega anterior si ya se cambió de bodega', async () => {
@@ -193,7 +245,7 @@ describe('store stock', () => {
     vi.mocked(stockApi.listStockLevels)
       .mockReturnValueOnce(new Promise((resolve) => (resolveFirst = resolve)))
       .mockResolvedValueOnce(pageOf([level('B')]))
-    vi.mocked(stockApi.listStockMovements).mockResolvedValue(pageOf([]))
+    vi.mocked(stockApi.listStockMovements).mockResolvedValue(cursorPageOf([]))
     const store = useStockStore()
 
     const first = store.selectWarehouse('w-1')
@@ -211,7 +263,7 @@ describe('caché con TTL de stock', () => {
     vi.mocked(warehousesApi.listWarehouses).mockResolvedValue(pageOf([]))
     vi.mocked(productsApi.listProducts).mockResolvedValue(pageOf([]))
     vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([level('A')], 1, 25))
-    vi.mocked(stockApi.listStockMovements).mockResolvedValue(pageOf([movement('1')], 1, 25))
+    vi.mocked(stockApi.listStockMovements).mockResolvedValue(cursorPageOf([movement('1')], 'c-1'))
   })
   afterEach(() => vi.useRealTimers())
 
@@ -250,7 +302,7 @@ describe('caché con TTL de stock', () => {
     await store.selectWarehouse('w-1')
 
     await store.fetchLevels(1)
-    await store.fetchMovements(1)
+    await store.fetchMovements()
 
     expect(stockApi.listStockLevels).toHaveBeenCalledTimes(1)
     expect(stockApi.listStockMovements).toHaveBeenCalledTimes(1)
@@ -276,13 +328,13 @@ describe('caché con TTL de stock', () => {
     await store.selectWarehouse('w-1')
 
     await store.fetchLevels(1, { force: true })
-    await store.fetchMovements(1, { force: true })
+    await store.fetchMovements({ force: true })
     expect(stockApi.listStockLevels).toHaveBeenCalledTimes(2)
     expect(stockApi.listStockMovements).toHaveBeenCalledTimes(2)
 
     vi.advanceTimersByTime(CACHE_TTL_MS)
     await store.fetchLevels(1)
-    await store.fetchMovements(1)
+    await store.fetchMovements()
     expect(stockApi.listStockLevels).toHaveBeenCalledTimes(3)
     expect(stockApi.listStockMovements).toHaveBeenCalledTimes(3)
   })
@@ -294,7 +346,7 @@ describe('caché con TTL de stock', () => {
 
     store.invalidate()
     await store.fetchLevels(1)
-    await store.fetchMovements(1)
+    await store.fetchMovements()
     expect(stockApi.listStockLevels).toHaveBeenCalledTimes(2)
     expect(stockApi.listStockMovements).toHaveBeenCalledTimes(2)
     expect(warehousesApi.listWarehouses).toHaveBeenCalledTimes(1)

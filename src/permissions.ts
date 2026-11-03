@@ -22,9 +22,11 @@ export type Permission =
    * recibió nunca resuelve (separación de funciones), y eso se comprueba aparte, no por rol.
    */
   | 'transfer:resolve'
+  /** Ver kardex y reportes (datos de costo): ADMIN y AUDITOR todas las bodegas; el jefe, las suyas. */
+  | 'reports:view'
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
-  ADMIN: ['catalog:write', 'stock:entry', 'transfer:resolve'],
+  ADMIN: ['catalog:write', 'stock:entry', 'transfer:resolve', 'reports:view'],
   WAREHOUSE_MANAGER: [
     'stock:entry',
     'stock:shrinkage',
@@ -32,9 +34,10 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'transfer:dispatch',
     'transfer:receive',
     'transfer:resolve',
+    'reports:view',
   ],
   OPERATOR: ['stock:shrinkage', 'transfer:create', 'transfer:receive'],
-  AUDITOR: [],
+  AUDITOR: ['reports:view'],
 }
 
 export const ROLE_LABELS: Record<Role, string> = {

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw, type Router } from 'vue-router'
 import MainLayout from '@/layouts/MainLayout.vue'
 import HomeView from '@/views/HomeView.vue'
+import KardexView from '@/views/KardexView.vue'
 import LoginView from '@/views/LoginView.vue'
 import ProductsView from '@/views/ProductsView.vue'
 import StockEntryView from '@/views/StockEntryView.vue'
@@ -40,6 +41,7 @@ export const routes: RouteRecordRaw[] = [
         component: StockShrinkageView,
         meta: { permission: 'stock:shrinkage' },
       },
+      { path: 'kardex', component: KardexView, meta: { permission: 'reports:view' } },
       { path: 'traspasos', component: TransfersView },
       {
         path: 'traspasos/nuevo',

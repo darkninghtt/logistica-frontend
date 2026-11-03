@@ -52,6 +52,10 @@ function pageOf<T>(data: T[], total = data.length) {
   return { data, page: 1, pageSize: 10, total }
 }
 
+function cursorPageOf<T>(data: T[], nextCursor: string | null = null) {
+  return { data, nextCursor }
+}
+
 async function mountView(role: Role = 'ADMIN') {
   const router = createRouter({
     history: createMemoryHistory(),
@@ -74,7 +78,7 @@ beforeEach(() => {
   vi.mocked(productsApi.listProducts).mockResolvedValue(pageOf([PRODUCT]))
   vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([LEVEL]))
   vi.mocked(stockApi.listStockMovements).mockResolvedValue(
-    pageOf([movement('2', 20, '110.0000'), movement('1', 10, '100.0000')]),
+    cursorPageOf([movement('2', 20, '110.0000'), movement('1', 10, '100.0000')]),
   )
 })
 
@@ -155,7 +159,7 @@ describe('StockView', () => {
       reason: string | null,
     ): StockMovementItem => ({ ...movement(id, 10, '110.0000'), type, reason, quantity: 2 })
     vi.mocked(stockApi.listStockMovements).mockResolvedValue(
-      pageOf([
+      cursorPageOf([
         typed('6', 'ADJUSTMENT_IN', 'Conteo físico al recibir'),
         typed('5', 'TRANSIT_SHRINKAGE', 'Caja rota en el camión'),
         typed('4', 'SHRINKAGE', 'DAMAGE: estiba caída'),
@@ -190,12 +194,12 @@ describe('StockView', () => {
     await wrapper.find('select[name=product]').setValue('p-A')
     await flushPromises()
 
-    expect(stockApi.listStockMovements).toHaveBeenLastCalledWith('w-1', 'p-A', 1, 10)
+    expect(stockApi.listStockMovements).toHaveBeenLastCalledWith('w-1', 'p-A', 10)
   })
 
   it('muestra los estados vacíos de existencias e historial', async () => {
     vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([]))
-    vi.mocked(stockApi.listStockMovements).mockResolvedValue(pageOf([]))
+    vi.mocked(stockApi.listStockMovements).mockResolvedValue(cursorPageOf([]))
     const wrapper = await mountView()
     await chooseWarehouse(wrapper)
 
@@ -230,18 +234,36 @@ describe('StockView', () => {
     expect(wrapper.find('[data-test=levels-table]').exists()).toBe(true)
   })
 
-  it('pagina el historial', async () => {
-    vi.mocked(stockApi.listStockMovements).mockResolvedValue(
-      pageOf([movement('2', 20, '110.0000')], 25),
-    )
+  it('"Cargar más" agrega la página siguiente y desaparece al llegar al final', async () => {
+    vi.mocked(stockApi.listStockMovements)
+      .mockResolvedValueOnce(cursorPageOf([movement('2', 20, '110.0000')], 'c-2'))
+      .mockResolvedValueOnce(cursorPageOf([movement('1', 10, '100.0000')], null))
+    const wrapper = await mountView()
+    await chooseWarehouse(wrapper)
+    expect(wrapper.findAll('[data-test=movements-table] tbody tr')).toHaveLength(1)
+
+    await wrapper.find('[data-test=load-more]').trigger('click')
+    await flushPromises()
+
+    expect(stockApi.listStockMovements).toHaveBeenLastCalledWith('w-1', undefined, 10, 'c-2')
+    expect(wrapper.findAll('[data-test=movements-table] tbody tr')).toHaveLength(2)
+    expect(wrapper.find('[data-test=load-more]').exists()).toBe(false)
+    expect(wrapper.find('[data-test=movements-end]').text()).toContain('No hay más movimientos')
+  })
+
+  it('si "Cargar más" falla, avisa sin perder las filas y deja reintentar', async () => {
+    vi.mocked(stockApi.listStockMovements)
+      .mockResolvedValueOnce(cursorPageOf([movement('2', 20, '110.0000')], 'c-2'))
+      .mockRejectedValueOnce(new ApiError('Sin conexión', null, null, null))
     const wrapper = await mountView()
     await chooseWarehouse(wrapper)
 
-    expect(wrapper.text()).toContain('Página 1 de 3 (25 movimientos)')
-    const next = wrapper.findAll('nav[aria-label="Paginación del historial"] button')[1]
-    await next?.trigger('click')
+    await wrapper.find('[data-test=load-more]').trigger('click')
+    await flushPromises()
 
-    expect(stockApi.listStockMovements).toHaveBeenLastCalledWith('w-1', undefined, 2, 10)
+    expect(wrapper.find('[data-test=more-error]').text()).toContain('Sin conexión')
+    expect(wrapper.findAll('[data-test=movements-table] tbody tr')).toHaveLength(1)
+    expect(wrapper.find('[data-test=load-more]').exists()).toBe(true)
   })
 })
 
@@ -285,7 +307,7 @@ describe('StockView según el rol (costos)', () => {
 
   it('si la API no envía costos (OPERATOR), no se muestran las columnas de costo', async () => {
     vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([LEVEL_NO_COST]))
-    vi.mocked(stockApi.listStockMovements).mockResolvedValue(pageOf([MOVEMENT_NO_COST]))
+    vi.mocked(stockApi.listStockMovements).mockResolvedValue(cursorPageOf([MOVEMENT_NO_COST]))
     const wrapper = await mountView('OPERATOR')
     await chooseWarehouse(wrapper)
 
