@@ -30,6 +30,7 @@ describe('MainLayout', () => {
       'Entrada de stock',
       'Traspasos',
       'Kardex',
+      'Reportes',
     ])
   })
 
@@ -71,7 +72,16 @@ describe('MainLayout: menú según el rol', () => {
   it.each([
     [
       'ADMIN',
-      ['Inicio', 'Bodegas', 'Productos', 'Stock', 'Entrada de stock', 'Traspasos', 'Kardex'],
+      [
+        'Inicio',
+        'Bodegas',
+        'Productos',
+        'Stock',
+        'Entrada de stock',
+        'Traspasos',
+        'Kardex',
+        'Reportes',
+      ],
     ],
     [
       'WAREHOUSE_MANAGER',
@@ -84,10 +94,11 @@ describe('MainLayout: menú según el rol', () => {
         'Mermas',
         'Traspasos',
         'Kardex',
+        'Reportes',
       ],
     ],
     ['OPERATOR', ['Inicio', 'Bodegas', 'Productos', 'Stock', 'Mermas', 'Traspasos']],
-    ['AUDITOR', ['Inicio', 'Bodegas', 'Productos', 'Stock', 'Traspasos', 'Kardex']],
+    ['AUDITOR', ['Inicio', 'Bodegas', 'Productos', 'Stock', 'Traspasos', 'Kardex', 'Reportes']],
   ] as const)('%s ve %j', async (role, expected) => {
     expect(await linksFor(role)).toEqual(expected)
   })

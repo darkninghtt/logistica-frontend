@@ -4,6 +4,7 @@ import HomeView from '@/views/HomeView.vue'
 import KardexView from '@/views/KardexView.vue'
 import LoginView from '@/views/LoginView.vue'
 import ProductsView from '@/views/ProductsView.vue'
+import ReportsView from '@/views/ReportsView.vue'
 import StockEntryView from '@/views/StockEntryView.vue'
 import StockShrinkageView from '@/views/StockShrinkageView.vue'
 import StockView from '@/views/StockView.vue'
@@ -42,6 +43,7 @@ export const routes: RouteRecordRaw[] = [
         meta: { permission: 'stock:shrinkage' },
       },
       { path: 'kardex', component: KardexView, meta: { permission: 'reports:view' } },
+      { path: 'reportes', component: ReportsView, meta: { permission: 'reports:view' } },
       { path: 'traspasos', component: TransfersView },
       {
         path: 'traspasos/nuevo',

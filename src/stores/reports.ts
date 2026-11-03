@@ -1,17 +1,34 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { getKardex } from '@/api/reports'
+import { getInTransitReport, getKardex, getShrinkageReport } from '@/api/reports'
 import { toApiError } from '@/api/http'
 import type { LoadStatus } from '@/types/api'
-import type { KardexPage, KardexRow } from '@/types/report'
+import type {
+  InTransitReport,
+  KardexPage,
+  KardexRow,
+  ShrinkageFilters,
+  ShrinkageReport,
+} from '@/types/report'
 
 const PAGE_SIZE = 20
 
 /**
- * Store de reportes. El kardex no usa la caché con TTL: es un reporte de auditoría y cada consulta
- * va al servidor para mostrar el libro al día.
+ * Store de reportes (kardex, mermas y mercancía en tránsito). No usa la caché con TTL: son
+ * reportes de auditoría y cada consulta va al servidor para mostrar el libro al día.
  */
 export const useReportsStore = defineStore('reports', () => {
+  // Reportes de mermas y en tránsito: son listas cortas ya agregadas por el servidor, así que se
+  // guardan tal como llegan (no hay entidades que normalizar)
+  const shrinkage = ref<ShrinkageReport | null>(null)
+  const shrinkageStatus = ref<LoadStatus>('idle')
+  const shrinkageError = ref<string | null>(null)
+  const inTransit = ref<InTransitReport | null>(null)
+  const inTransitStatus = ref<LoadStatus>('idle')
+  const inTransitError = ref<string | null>(null)
+  let shrinkageRequest = 0
+  let inTransitRequest = 0
+
   const kardexWarehouseId = ref('')
   const kardexProductId = ref('')
   const kardexById = ref<Record<string, KardexRow>>({})
@@ -96,9 +113,43 @@ export const useReportsStore = defineStore('reports', () => {
     }
   }
 
+  async function loadShrinkage(filters: ShrinkageFilters): Promise<void> {
+    const request = ++shrinkageRequest
+    shrinkageStatus.value = 'loading'
+    shrinkageError.value = null
+    try {
+      const report = await getShrinkageReport(filters)
+      if (request !== shrinkageRequest) return
+      shrinkage.value = report
+      shrinkageStatus.value = 'success'
+    } catch (err) {
+      if (request !== shrinkageRequest) return
+      shrinkageError.value = toApiError(err).message
+      shrinkageStatus.value = 'error'
+    }
+  }
+
+  async function loadInTransit(warehouseId: string): Promise<void> {
+    const request = ++inTransitRequest
+    inTransitStatus.value = 'loading'
+    inTransitError.value = null
+    try {
+      const report = await getInTransitReport(warehouseId)
+      if (request !== inTransitRequest) return
+      inTransit.value = report
+      inTransitStatus.value = 'success'
+    } catch (err) {
+      if (request !== inTransitRequest) return
+      inTransitError.value = toApiError(err).message
+      inTransitStatus.value = 'error'
+    }
+  }
+
   /** Descarta las respuestas en vuelo (lo usa el plugin que vacía los stores al cerrar sesión). */
   function cancelPending(): void {
     kardexRequest++
+    shrinkageRequest++
+    inTransitRequest++
   }
 
   return {
@@ -114,6 +165,14 @@ export const useReportsStore = defineStore('reports', () => {
     moreKardexError,
     loadKardex,
     loadMoreKardex,
+    shrinkage,
+    shrinkageStatus,
+    shrinkageError,
+    inTransit,
+    inTransitStatus,
+    inTransitError,
+    loadShrinkage,
+    loadInTransit,
     cancelPending,
   }
 })
