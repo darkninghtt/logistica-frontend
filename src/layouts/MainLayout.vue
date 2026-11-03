@@ -28,6 +28,7 @@ const allLinks: NavLink[] = [
   { to: '/stock/merma', label: 'Mermas', permission: 'stock:shrinkage' },
   { to: '/traspasos', label: 'Traspasos' },
   { to: '/kardex', label: 'Kardex', permission: 'reports:view' },
+  { to: '/reportes', label: 'Reportes', permission: 'reports:view' },
 ]
 
 const links = computed(() =>
