@@ -39,10 +39,13 @@ export const useStockStore = defineStore('stock', () => {
 
   const movementsById = ref<Record<string, StockMovementItem>>({})
   const movementIds = ref<string[]>([])
-  const movementsPage = ref(1)
-  const movementsTotal = ref(0)
+  /** Cursor de la página siguiente del historial; null si ya se cargó todo. */
+  const movementsNextCursor = ref<string | null>(null)
   const movementsStatus = ref<LoadStatus>('idle')
   const movementsError = ref<string | null>(null)
+  // "Cargar más" tiene su propio estado: si falla, la lista ya cargada se sigue viendo
+  const moreMovementsStatus = ref<LoadStatus>('idle')
+  const moreMovementsError = ref<string | null>(null)
   const movementsCache = useTtlCache()
 
   // Si el usuario cambia de bodega mientras llega una respuesta, esa respuesta ya no aplica.
@@ -62,7 +65,7 @@ export const useStockStore = defineStore('stock', () => {
     }),
   )
   const levelsPages = computed(() => Math.max(1, Math.ceil(levelsTotal.value / PAGE_SIZE)))
-  const movementsPages = computed(() => Math.max(1, Math.ceil(movementsTotal.value / PAGE_SIZE)))
+  const hasMoreMovements = computed(() => movementsNextCursor.value !== null)
 
   /** Carga las opciones de los selectores. Si siguen vigentes (TTL) no las vuelve a pedir, salvo con `force`. */
   async function loadOptions({ force = false }: { force?: boolean } = {}): Promise<void> {
@@ -112,28 +115,26 @@ export const useStockStore = defineStore('stock', () => {
     }
   }
 
-  async function fetchMovements(
-    target: number = movementsPage.value,
-    { force = false }: { force?: boolean } = {},
-  ): Promise<void> {
+  /** Primera página del historial (reemplaza la lista). La caché recuerda solo esa página. */
+  async function fetchMovements({ force = false }: { force?: boolean } = {}): Promise<void> {
     if (!warehouseId.value) return
-    const key = `${warehouseId.value}|${productId.value}|${target}`
+    const key = `${warehouseId.value}|${productId.value}`
     if (!force && movementsCache.isFresh(key)) return
     const request = ++movementsRequest
     movementsStatus.value = 'loading'
     movementsError.value = null
+    moreMovementsStatus.value = 'idle'
+    moreMovementsError.value = null
     try {
       const result = await listStockMovements(
         warehouseId.value,
         productId.value || undefined,
-        target,
         PAGE_SIZE,
       )
       if (request !== movementsRequest) return
       movementsById.value = Object.fromEntries(result.data.map((m) => [m.id, m]))
       movementIds.value = result.data.map((m) => m.id)
-      movementsPage.value = result.page
-      movementsTotal.value = result.total
+      movementsNextCursor.value = result.nextCursor
       movementsCache.markFetched(key)
       movementsStatus.value = 'success'
     } catch (err) {
@@ -144,12 +145,43 @@ export const useStockStore = defineStore('stock', () => {
     }
   }
 
+  /** "Cargar más": pide la página siguiente con el cursor y la agrega al final de la lista. */
+  async function loadMoreMovements(): Promise<void> {
+    const cursor = movementsNextCursor.value
+    if (!warehouseId.value || cursor === null || moreMovementsStatus.value === 'loading') return
+    // Comparte el contador con fetchMovements: si cambia la bodega o el producto, se descarta
+    const request = ++movementsRequest
+    moreMovementsStatus.value = 'loading'
+    moreMovementsError.value = null
+    try {
+      const result = await listStockMovements(
+        warehouseId.value,
+        productId.value || undefined,
+        PAGE_SIZE,
+        cursor,
+      )
+      if (request !== movementsRequest) return
+      for (const m of result.data) {
+        // El cursor no repite filas, pero así una respuesta duplicada tampoco las repetiría
+        if (!movementsById.value[m.id]) movementIds.value.push(m.id)
+        movementsById.value[m.id] = m
+      }
+      movementsNextCursor.value = result.nextCursor
+      moreMovementsStatus.value = 'success'
+    } catch (err) {
+      if (request !== movementsRequest) return
+      moreMovementsError.value = toApiError(err).message
+      moreMovementsStatus.value = 'error'
+    }
+  }
+
   /** Cambia de bodega: reinicia el filtro de producto y recarga existencias e historial. */
   async function selectWarehouse(id: string): Promise<void> {
     warehouseId.value = id
     productId.value = ''
     levelIds.value = []
     movementIds.value = []
+    movementsNextCursor.value = null
     levelsCache.invalidate()
     movementsCache.invalidate()
     if (!id) {
@@ -159,7 +191,7 @@ export const useStockStore = defineStore('stock', () => {
       movementsStatus.value = 'idle'
       return
     }
-    await Promise.all([fetchLevels(1), fetchMovements(1)])
+    await Promise.all([fetchLevels(1), fetchMovements()])
   }
 
   /**
@@ -186,7 +218,7 @@ export const useStockStore = defineStore('stock', () => {
   /** Filtra el historial por producto (cadena vacía = todos). */
   async function selectProduct(id: string): Promise<void> {
     productId.value = id
-    await fetchMovements(1)
+    await fetchMovements()
   }
 
   return {
@@ -206,14 +238,15 @@ export const useStockStore = defineStore('stock', () => {
     levelsStatus,
     levelsError,
     movements,
-    movementsPage,
-    movementsPages,
-    movementsTotal,
+    hasMoreMovements,
     movementsStatus,
     movementsError,
+    moreMovementsStatus,
+    moreMovementsError,
     loadOptions,
     fetchLevels,
     fetchMovements,
+    loadMoreMovements,
     selectWarehouse,
     selectProduct,
     invalidate,

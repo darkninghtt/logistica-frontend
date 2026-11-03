@@ -174,28 +174,21 @@ function formatDate(iso: string): string {
               </tr>
             </tbody>
           </table>
-          <nav class="pager" aria-label="Paginación del historial">
+          <div class="more">
+            <p v-if="store.moreMovementsStatus === 'error'" role="alert" data-test="more-error">
+              No se pudieron cargar más movimientos: {{ store.moreMovementsError }}
+            </p>
             <button
+              v-if="store.hasMoreMovements"
               type="button"
-              :disabled="store.movementsPage <= 1"
-              @click="store.fetchMovements(store.movementsPage - 1)"
+              data-test="load-more"
+              :disabled="store.moreMovementsStatus === 'loading'"
+              @click="store.loadMoreMovements()"
             >
-              Anterior
+              {{ store.moreMovementsStatus === 'loading' ? 'Cargando…' : 'Cargar más' }}
             </button>
-            <span>
-              Página {{ store.movementsPage }} de {{ store.movementsPages }} ({{
-                store.movementsTotal
-              }}
-              movimientos)
-            </span>
-            <button
-              type="button"
-              :disabled="store.movementsPage >= store.movementsPages"
-              @click="store.fetchMovements(store.movementsPage + 1)"
-            >
-              Siguiente
-            </button>
-          </nav>
+            <p v-else data-test="movements-end">No hay más movimientos.</p>
+          </div>
         </template>
       </template>
     </template>
@@ -223,7 +216,8 @@ td {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-.pager {
+.pager,
+.more {
   display: flex;
   align-items: center;
   gap: 1rem;

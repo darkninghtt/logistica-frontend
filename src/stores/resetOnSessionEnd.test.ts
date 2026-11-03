@@ -147,12 +147,7 @@ describe('resetOnSessionEnd', () => {
     vi.mocked(stockApi.listStockLevels).mockReturnValue(
       new Promise((resolve) => (arrive = resolve)),
     )
-    vi.mocked(stockApi.listStockMovements).mockResolvedValue({
-      data: [],
-      page: 1,
-      pageSize: 10,
-      total: 0,
-    })
+    vi.mocked(stockApi.listStockMovements).mockResolvedValue({ data: [], nextCursor: null })
     const stock = useStockStore()
 
     const pending = stock.selectWarehouse('wa')
