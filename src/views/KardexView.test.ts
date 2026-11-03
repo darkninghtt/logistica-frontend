@@ -12,6 +12,7 @@ import type { KardexPage, KardexRow } from '@/types/report'
 vi.mock('@/api/reports')
 vi.mock('@/api/warehouses')
 vi.mock('@/api/products')
+vi.mock('@/composables/useDownload', () => ({ saveFile: vi.fn() }))
 
 const WAREHOUSE = { id: 'w-1', code: 'A', name: 'Bodega A', active: true, createdAt: '' }
 const PRODUCT = { id: 'p-1', sku: 'SKU-1', name: 'Tornillo', unit: 'un', createdAt: '' }
@@ -192,5 +193,38 @@ describe('KardexView', () => {
     await flushPromises()
 
     expect(wrapper.find('select[name=warehouse]').exists()).toBe(true)
+  })
+})
+
+describe('KardexView: exportación', () => {
+  it('los botones exportan el kardex elegido en CSV y PDF', async () => {
+    vi.mocked(reportsApi.downloadKardex).mockResolvedValue({
+      blob: new Blob(['x']),
+      filename: 'kardex.csv',
+    })
+    const wrapper = await mountView()
+    await choose(wrapper)
+
+    await wrapper.find('[data-test=export-csv]').trigger('click')
+    await flushPromises()
+    await wrapper.find('[data-test=export-pdf]').trigger('click')
+    await flushPromises()
+
+    expect(reportsApi.downloadKardex).toHaveBeenNthCalledWith(1, 'w-1', 'p-1', 'csv')
+    expect(reportsApi.downloadKardex).toHaveBeenNthCalledWith(2, 'w-1', 'p-1', 'pdf')
+  })
+
+  it('si exportar falla lo avisa sin ocultar el kardex', async () => {
+    vi.mocked(reportsApi.downloadKardex).mockRejectedValue(
+      new ApiError('No tienes permiso para realizar esta acción', 403, 'FORBIDDEN', 'x'),
+    )
+    const wrapper = await mountView()
+    await choose(wrapper)
+
+    await wrapper.find('[data-test=export-pdf]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-test=export-error]').text()).toContain('No tienes permiso')
+    expect(wrapper.find('[data-test=kardex-table]').exists()).toBe(true)
   })
 })

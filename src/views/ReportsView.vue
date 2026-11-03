@@ -106,6 +106,29 @@ function formatDate(iso: string): string {
         </table>
       </div>
     </template>
+    <div class="actions">
+      <button
+        type="button"
+        data-test="export-csv"
+        :disabled="reports.exportStatus === 'loading'"
+        @click="reports.exportShrinkage({ ...filters }, 'csv')"
+      >
+        Exportar CSV
+      </button>
+      <button
+        type="button"
+        data-test="export-pdf"
+        :disabled="reports.exportStatus === 'loading'"
+        @click="reports.exportShrinkage({ ...filters }, 'pdf')"
+      >
+        Exportar PDF
+      </button>
+      <span v-if="reports.exportStatus === 'loading'">Generando archivo…</span>
+      <span v-if="reports.exportStatus === 'error'" role="alert" data-test="export-error">
+        No se pudo exportar: {{ reports.exportError }}
+      </span>
+    </div>
+
     <h2>Mercancía en tránsito</h2>
     <p class="hint">
       Traspasos despachados que aún no se reciben, al costo congelado al despachar.
@@ -188,5 +211,12 @@ td {
 .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0 2rem;
 }
 </style>

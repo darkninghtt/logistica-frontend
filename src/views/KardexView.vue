@@ -98,6 +98,28 @@ function referenceText(row: KardexRow): string {
             reports.kardexProduct.unit
           }}) en {{ reports.kardexWarehouse.code }} · {{ reports.kardexWarehouse.name }}
         </p>
+        <div class="more">
+          <button
+            type="button"
+            data-test="export-csv"
+            :disabled="reports.exportStatus === 'loading'"
+            @click="reports.exportKardex('csv')"
+          >
+            Exportar CSV
+          </button>
+          <button
+            type="button"
+            data-test="export-pdf"
+            :disabled="reports.exportStatus === 'loading'"
+            @click="reports.exportKardex('pdf')"
+          >
+            Exportar PDF
+          </button>
+          <span v-if="reports.exportStatus === 'loading'">Generando archivo…</span>
+          <span v-if="reports.exportStatus === 'error'" role="alert" data-test="export-error">
+            No se pudo exportar: {{ reports.exportError }}
+          </span>
+        </div>
         <div class="scroll">
           <table data-test="kardex-table">
             <thead>

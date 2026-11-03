@@ -12,6 +12,7 @@ import type { InTransitReport, ShrinkageReport } from '@/types/report'
 vi.mock('@/api/reports')
 vi.mock('@/api/warehouses')
 vi.mock('@/api/products')
+vi.mock('@/composables/useDownload', () => ({ saveFile: vi.fn() }))
 
 const WAREHOUSE = { id: 'w-1', code: 'A', name: 'Bodega A', active: true, createdAt: '' }
 const SHRINKAGE: ShrinkageReport = {
@@ -159,5 +160,34 @@ describe('ReportsView', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-test=shrinkage-table]').exists()).toBe(true)
+  })
+
+  it('los botones exportan las mermas con los filtros del formulario', async () => {
+    vi.mocked(reportsApi.downloadShrinkage).mockResolvedValue({
+      blob: new Blob(['x']),
+      filename: 'mermas.csv',
+    })
+    const wrapper = await mountView()
+    await wrapper.find('input[name=from]').setValue('2026-11-01')
+
+    await wrapper.find('[data-test=export-pdf]').trigger('click')
+    await flushPromises()
+
+    expect(reportsApi.downloadShrinkage).toHaveBeenCalledWith(
+      { warehouseId: '', from: '2026-11-01', to: '' },
+      'pdf',
+    )
+  })
+
+  it('si exportar falla lo avisa', async () => {
+    vi.mocked(reportsApi.downloadShrinkage).mockRejectedValue(
+      new ApiError('No se pudo conectar con el servidor', null, null, null),
+    )
+    const wrapper = await mountView()
+
+    await wrapper.find('[data-test=export-csv]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-test=export-error]').text()).toContain('No se pudo conectar')
   })
 })

@@ -1,9 +1,18 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { getInTransitReport, getKardex, getShrinkageReport } from '@/api/reports'
+import {
+  downloadKardex,
+  downloadShrinkage,
+  getInTransitReport,
+  getKardex,
+  getShrinkageReport,
+  type DownloadedFile,
+} from '@/api/reports'
 import { toApiError } from '@/api/http'
+import { saveFile } from '@/composables/useDownload'
 import type { LoadStatus } from '@/types/api'
 import type {
+  ExportFormat,
   InTransitReport,
   KardexPage,
   KardexRow,
@@ -26,6 +35,8 @@ export const useReportsStore = defineStore('reports', () => {
   const inTransit = ref<InTransitReport | null>(null)
   const inTransitStatus = ref<LoadStatus>('idle')
   const inTransitError = ref<string | null>(null)
+  const exportStatus = ref<LoadStatus>('idle')
+  const exportError = ref<string | null>(null)
   let shrinkageRequest = 0
   let inTransitRequest = 0
 
@@ -145,6 +156,29 @@ export const useReportsStore = defineStore('reports', () => {
     }
   }
 
+  /** Descarga el archivo y lo entrega al navegador; un error queda en `exportError`. */
+  async function runExport(fetchFile: () => Promise<DownloadedFile>): Promise<void> {
+    if (exportStatus.value === 'loading') return
+    exportStatus.value = 'loading'
+    exportError.value = null
+    try {
+      const { blob, filename } = await fetchFile()
+      saveFile(blob, filename)
+      exportStatus.value = 'success'
+    } catch (err) {
+      exportError.value = toApiError(err).message
+      exportStatus.value = 'error'
+    }
+  }
+
+  function exportKardex(format: ExportFormat): Promise<void> {
+    return runExport(() => downloadKardex(kardexWarehouseId.value, kardexProductId.value, format))
+  }
+
+  function exportShrinkage(filters: ShrinkageFilters, format: ExportFormat): Promise<void> {
+    return runExport(() => downloadShrinkage(filters, format))
+  }
+
   /** Descarta las respuestas en vuelo (lo usa el plugin que vacía los stores al cerrar sesión). */
   function cancelPending(): void {
     kardexRequest++
@@ -171,8 +205,12 @@ export const useReportsStore = defineStore('reports', () => {
     inTransit,
     inTransitStatus,
     inTransitError,
+    exportStatus,
+    exportError,
     loadShrinkage,
     loadInTransit,
+    exportKardex,
+    exportShrinkage,
     cancelPending,
   }
 })
