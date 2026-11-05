@@ -1,11 +1,27 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import RealtimeNotices from '@/components/RealtimeNotices.vue'
+import { useRealtime } from '@/composables/useRealtime'
 import { ROLE_LABELS, type Permission } from '@/permissions'
+import { screenFromRoute } from '@/realtime'
 import { useAuthStore } from '@/stores/auth'
+import { useRealtimeStore } from '@/stores/realtime'
+import type { RealtimeStatus } from '@/types/realtime'
 
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
+const realtime = useRealtimeStore()
+
+// Conexión en vivo mientras haya sesión; los eventos recargan lo que está en pantalla
+useRealtime(() => screenFromRoute(route.name, route.params.id))
+
+const REALTIME_LABELS: Record<RealtimeStatus, string> = {
+  connected: 'En vivo',
+  connecting: 'Conectando…',
+  disconnected: 'Sin conexión en vivo',
+}
 
 async function onLogout(): Promise<void> {
   await auth.logout()
@@ -44,6 +60,18 @@ const links = computed(() =>
         <RouterLink v-for="link in links" :key="link.to" :to="link.to">{{ link.label }}</RouterLink>
       </nav>
       <div class="session">
+        <span
+          class="live"
+          :class="realtime.status"
+          data-test="realtime-status"
+          :title="
+            realtime.status === 'connected'
+              ? 'Los cambios de otros usuarios aparecen solos'
+              : 'Los datos se actualizan al recargar cada pantalla'
+          "
+        >
+          {{ REALTIME_LABELS[realtime.status] }}
+        </span>
         <span v-if="auth.user" data-test="user">
           {{ auth.user.name }} · {{ ROLE_LABELS[auth.user.role] }}
         </span>
@@ -53,6 +81,7 @@ const links = computed(() =>
     <main class="content">
       <RouterView />
     </main>
+    <RealtimeNotices />
   </div>
 </template>
 
@@ -89,5 +118,24 @@ nav a.router-link-exact-active {
 }
 .content {
   padding: 1.5rem;
+}
+.live {
+  font-size: 0.8rem;
+  color: #d1d5db;
+}
+.live::before {
+  content: '';
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.35rem;
+  border-radius: 50%;
+  background: #9ca3af;
+}
+.live.connected::before {
+  background: #22c55e;
+}
+.live.connecting::before {
+  background: #f59e0b;
 }
 </style>
