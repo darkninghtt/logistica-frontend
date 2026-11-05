@@ -24,9 +24,11 @@ export type Permission =
   | 'transfer:resolve'
   /** Ver kardex y reportes (datos de costo): ADMIN y AUDITOR todas las bodegas; el jefe, las suyas. */
   | 'reports:view'
+  /** Crear y editar usuarios, activarlos o desactivarlos y asignarles bodegas (solo ADMIN). */
+  | 'users:manage'
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
-  ADMIN: ['catalog:write', 'stock:entry', 'transfer:resolve', 'reports:view'],
+  ADMIN: ['catalog:write', 'stock:entry', 'transfer:resolve', 'reports:view', 'users:manage'],
   WAREHOUSE_MANAGER: [
     'stock:entry',
     'stock:shrinkage',
@@ -49,4 +51,14 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 export function roleCan(role: Role | null, permission: Permission): boolean {
   return role !== null && ROLE_PERMISSIONS[role].includes(permission)
+}
+
+export const ROLES: readonly Role[] = ['ADMIN', 'WAREHOUSE_MANAGER', 'OPERATOR', 'AUDITOR']
+
+/**
+ * ¿El rol trabaja solo sobre las bodegas que tiene asignadas? El ADMIN y el AUDITOR tienen alcance
+ * global (ven todas), así que a ellos no se les asignan bodegas.
+ */
+export function roleUsesWarehouses(role: Role): boolean {
+  return role === 'WAREHOUSE_MANAGER' || role === 'OPERATOR'
 }

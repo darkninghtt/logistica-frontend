@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { roleCan } from './permissions'
+import { roleCan, roleUsesWarehouses } from './permissions'
 
 describe('roleCan', () => {
   it.each([
@@ -35,11 +35,24 @@ describe('roleCan', () => {
     ['WAREHOUSE_MANAGER', 'reports:view', true],
     ['OPERATOR', 'reports:view', false],
     ['AUDITOR', 'reports:view', true],
+    ['ADMIN', 'users:manage', true],
+    ['WAREHOUSE_MANAGER', 'users:manage', false],
+    ['OPERATOR', 'users:manage', false],
+    ['AUDITOR', 'users:manage', false],
   ] as const)('%s · %s → %s', (role, permission, expected) => {
     expect(roleCan(role, permission)).toBe(expected)
   })
 
   it('sin rol (sin sesión) no hay permisos', () => {
     expect(roleCan(null, 'stock:entry')).toBe(false)
+  })
+})
+
+describe('roleUsesWarehouses', () => {
+  it('solo el jefe de bodega y el operario trabajan con bodegas asignadas', () => {
+    expect(roleUsesWarehouses('WAREHOUSE_MANAGER')).toBe(true)
+    expect(roleUsesWarehouses('OPERATOR')).toBe(true)
+    expect(roleUsesWarehouses('ADMIN')).toBe(false)
+    expect(roleUsesWarehouses('AUDITOR')).toBe(false)
   })
 })

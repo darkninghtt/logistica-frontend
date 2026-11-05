@@ -45,6 +45,7 @@ const allLinks: NavLink[] = [
   { to: '/traspasos', label: 'Traspasos' },
   { to: '/kardex', label: 'Kardex', permission: 'reports:view' },
   { to: '/reportes', label: 'Reportes', permission: 'reports:view' },
+  { to: '/usuarios', label: 'Usuarios', permission: 'users:manage' },
 ]
 
 const links = computed(() =>
