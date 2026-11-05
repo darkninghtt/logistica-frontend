@@ -73,16 +73,22 @@ export const useTransfersStore = defineStore('transfers', () => {
   )
   const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
-  /** Carga una página del listado. Si es la misma consulta y sigue vigente (TTL), no la vuelve a pedir. */
+  /**
+   * Carga una página del listado. Si es la misma consulta y sigue vigente (TTL), no la vuelve a pedir.
+   * Con `silent` (recarga por un aviso en vivo) la tabla actual se sigue viendo mientras llega la
+   * respuesta y, si la recarga falla, se queda como estaba.
+   */
   async function fetchPage(
     target: number = page.value,
-    { force = false }: { force?: boolean } = {},
+    { force = false, silent = false }: { force?: boolean; silent?: boolean } = {},
   ): Promise<void> {
     const key = `${filters.value.status}|${filters.value.warehouseId}|${target}`
     if (!force && listCache.isFresh(key)) return
     const request = ++listRequest
-    status.value = 'loading'
-    error.value = null
+    if (!silent) {
+      status.value = 'loading'
+      error.value = null
+    }
     try {
       const result = await api.listTransfers(filters.value, target, pageSize.value)
       if (request !== listRequest) return
@@ -92,9 +98,11 @@ export const useTransfersStore = defineStore('transfers', () => {
       total.value = result.total
       listCache.markFetched(key)
       status.value = 'success'
+      error.value = null
     } catch (err) {
       if (request !== listRequest) return
       listCache.invalidate()
+      if (silent && status.value === 'success') return
       error.value = toApiError(err).message
       status.value = 'error'
     }
@@ -274,6 +282,21 @@ export const useTransfersStore = defineStore('transfers', () => {
     detailCache.invalidate()
   }
 
+  /**
+   * Aviso en vivo de que un traspaso cambió (lo hizo otra persona u otra pestaña): descarta la
+   * caché y vuelve a pedir solo lo que está en pantalla. Lo demás se pedirá al entrar.
+   */
+  async function refreshAfterEvent(
+    transferId: string,
+    onScreen: { list: boolean; detail: boolean },
+  ): Promise<void> {
+    invalidate()
+    await Promise.all([
+      onScreen.list ? fetchPage(page.value, { force: true, silent: true }) : undefined,
+      onScreen.detail ? fetchDetail(transferId, { force: true }) : undefined,
+    ])
+  }
+
   /** Descarta las opciones del borrador: tras crear o editar una bodega o un producto. */
   function invalidateOptions(): void {
     optionsCache.invalidate()
@@ -338,6 +361,7 @@ export const useTransfersStore = defineStore('transfers', () => {
     loadWarehouses,
     cancelPending,
     invalidate,
+    refreshAfterEvent,
     invalidateOptions,
     clearActionError,
     clearSaveError,

@@ -549,3 +549,62 @@ describe('caché con TTL de transfers', () => {
     expect(api.getTransfer).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('store transfers: avisos en vivo (refreshAfterEvent)', () => {
+  it('con el listado en pantalla, invalida y lo recarga sin pasar por "Cargando"', async () => {
+    vi.mocked(api.listTransfers).mockResolvedValue(pageOf(['t1']))
+    const store = useTransfersStore()
+    await store.fetchPage(1)
+    vi.mocked(api.listTransfers).mockResolvedValue({
+      data: [summary('t1', 'IN_TRANSIT')],
+      page: 1,
+      pageSize: 10,
+      total: 1,
+    })
+
+    const refreshing = store.refreshAfterEvent('t1', { list: true, detail: false })
+    expect(store.status).toBe('success')
+    await refreshing
+
+    expect(api.listTransfers).toHaveBeenCalledTimes(2)
+    expect(store.items[0]?.status).toBe('IN_TRANSIT')
+    expect(api.getTransfer).not.toHaveBeenCalled()
+  })
+
+  it('con el detalle en pantalla, recarga ese traspaso', async () => {
+    vi.mocked(api.getTransfer).mockResolvedValueOnce(detail('t1'))
+    const store = useTransfersStore()
+    await store.fetchDetail('t1')
+    vi.mocked(api.getTransfer).mockResolvedValueOnce(detail('t1', 'IN_TRANSIT'))
+
+    await store.refreshAfterEvent('t1', { list: false, detail: true })
+
+    expect(api.getTransfer).toHaveBeenCalledTimes(2)
+    expect(store.details.t1?.status).toBe('IN_TRANSIT')
+  })
+
+  it('sin nada en pantalla no pide nada, pero la próxima carga va al servidor', async () => {
+    vi.mocked(api.listTransfers).mockResolvedValue(pageOf(['t1']))
+    const store = useTransfersStore()
+    await store.fetchPage(1)
+
+    await store.refreshAfterEvent('t1', { list: false, detail: false })
+    expect(api.listTransfers).toHaveBeenCalledTimes(1)
+
+    await store.fetchPage(1)
+    expect(api.listTransfers).toHaveBeenCalledTimes(2)
+  })
+
+  it('si la recarga en vivo falla, se sigue viendo el listado que había', async () => {
+    vi.mocked(api.listTransfers).mockResolvedValue(pageOf(['t1']))
+    const store = useTransfersStore()
+    await store.fetchPage(1)
+    vi.mocked(api.listTransfers).mockRejectedValue(new ApiError('Caído', 503, null, null))
+
+    await store.refreshAfterEvent('t1', { list: true, detail: false })
+
+    expect(store.status).toBe('success')
+    expect(store.error).toBeNull()
+    expect(store.ids).toEqual(['t1'])
+  })
+})
