@@ -88,16 +88,22 @@ export const useStockStore = defineStore('stock', () => {
     }
   }
 
+  /**
+   * Carga una página de existencias. Con `silent` (recarga por un aviso en vivo) la tabla actual se
+   * sigue viendo mientras llega la respuesta y, si la recarga falla, se queda como estaba.
+   */
   async function fetchLevels(
     target: number = levelsPage.value,
-    { force = false }: { force?: boolean } = {},
+    { force = false, silent = false }: { force?: boolean; silent?: boolean } = {},
   ): Promise<void> {
     if (!warehouseId.value) return
     const key = `${warehouseId.value}|${target}`
     if (!force && levelsCache.isFresh(key)) return
     const request = ++levelsRequest
-    levelsStatus.value = 'loading'
-    levelsError.value = null
+    if (!silent) {
+      levelsStatus.value = 'loading'
+      levelsError.value = null
+    }
     try {
       const result = await listStockLevels(warehouseId.value, target, PAGE_SIZE)
       if (request !== levelsRequest) return
@@ -107,22 +113,32 @@ export const useStockStore = defineStore('stock', () => {
       levelsTotal.value = result.total
       levelsCache.markFetched(key)
       levelsStatus.value = 'success'
+      levelsError.value = null
     } catch (err) {
       if (request !== levelsRequest) return
       levelsCache.invalidate()
+      if (silent && levelsStatus.value === 'success') return
       levelsError.value = toApiError(err).message
       levelsStatus.value = 'error'
     }
   }
 
-  /** Primera página del historial (reemplaza la lista). La caché recuerda solo esa página. */
-  async function fetchMovements({ force = false }: { force?: boolean } = {}): Promise<void> {
+  /**
+   * Primera página del historial (reemplaza la lista). La caché recuerda solo esa página. Con
+   * `silent`, igual que en `fetchLevels`: no se muestra "Cargando" ni se pierde la lista si falla.
+   */
+  async function fetchMovements({
+    force = false,
+    silent = false,
+  }: { force?: boolean; silent?: boolean } = {}): Promise<void> {
     if (!warehouseId.value) return
     const key = `${warehouseId.value}|${productId.value}`
     if (!force && movementsCache.isFresh(key)) return
     const request = ++movementsRequest
-    movementsStatus.value = 'loading'
-    movementsError.value = null
+    if (!silent) {
+      movementsStatus.value = 'loading'
+      movementsError.value = null
+    }
     moreMovementsStatus.value = 'idle'
     moreMovementsError.value = null
     try {
@@ -137,9 +153,11 @@ export const useStockStore = defineStore('stock', () => {
       movementsNextCursor.value = result.nextCursor
       movementsCache.markFetched(key)
       movementsStatus.value = 'success'
+      movementsError.value = null
     } catch (err) {
       if (request !== movementsRequest) return
       movementsCache.invalidate()
+      if (silent && movementsStatus.value === 'success') return
       movementsError.value = toApiError(err).message
       movementsStatus.value = 'error'
     }
@@ -210,6 +228,19 @@ export const useStockStore = defineStore('stock', () => {
     movementsCache.invalidate()
   }
 
+  /**
+   * Aviso en vivo de que cambió el stock de una bodega: descarta la caché y, si esa bodega es la que
+   * está en pantalla, vuelve a pedir sus existencias y su historial (desde la primera página).
+   */
+  async function refreshAfterEvent(changedWarehouseId: string, onScreen: boolean): Promise<void> {
+    invalidate()
+    if (!onScreen || changedWarehouseId !== warehouseId.value) return
+    await Promise.all([
+      fetchLevels(levelsPage.value, { force: true, silent: true }),
+      fetchMovements({ force: true, silent: true }),
+    ])
+  }
+
   /** Descarta las opciones de los selectores: tras crear o editar una bodega o un producto. */
   function invalidateOptions(): void {
     optionsCache.invalidate()
@@ -250,6 +281,7 @@ export const useStockStore = defineStore('stock', () => {
     selectWarehouse,
     selectProduct,
     invalidate,
+    refreshAfterEvent,
     invalidateOptions,
     cancelPending,
   }

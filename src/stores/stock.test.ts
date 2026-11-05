@@ -372,3 +372,52 @@ describe('caché con TTL de stock', () => {
     expect(store.levelsStatus).toBe('success')
   })
 })
+
+describe('store stock: avisos en vivo (refreshAfterEvent)', () => {
+  async function storeOnWarehouse() {
+    vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([level('A', 10)]))
+    vi.mocked(stockApi.listStockMovements).mockResolvedValue(cursorPageOf([movement('m1')]))
+    const store = useStockStore()
+    await store.selectWarehouse('w-1')
+    return store
+  }
+
+  it('si la bodega del evento está en pantalla, recarga existencias e historial', async () => {
+    const store = await storeOnWarehouse()
+    vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([level('A', 4)]))
+    vi.mocked(stockApi.listStockMovements).mockResolvedValue(
+      cursorPageOf([movement('m2'), movement('m1')]),
+    )
+
+    const refreshing = store.refreshAfterEvent('w-1', true)
+    expect(store.levelsStatus).toBe('success')
+    await refreshing
+
+    expect(store.levels[0]?.quantity).toBe(4)
+    expect(store.movements.map((m) => m.id)).toEqual(['m2', 'm1'])
+  })
+
+  it('si el evento es de otra bodega o el stock no está en pantalla, solo invalida', async () => {
+    const store = await storeOnWarehouse()
+
+    await store.refreshAfterEvent('w-2', true)
+    await store.refreshAfterEvent('w-1', false)
+    expect(stockApi.listStockLevels).toHaveBeenCalledTimes(1)
+
+    await store.fetchLevels(1)
+    expect(stockApi.listStockLevels).toHaveBeenCalledTimes(2)
+  })
+
+  it('si la recarga en vivo falla, se siguen viendo los datos que había', async () => {
+    const store = await storeOnWarehouse()
+    vi.mocked(stockApi.listStockLevels).mockRejectedValue(new ApiError('Caído', 503, null, null))
+    vi.mocked(stockApi.listStockMovements).mockRejectedValue(new ApiError('Caído', 503, null, null))
+
+    await store.refreshAfterEvent('w-1', true)
+
+    expect(store.levelsStatus).toBe('success')
+    expect(store.movementsStatus).toBe('success')
+    expect(store.levels).toHaveLength(1)
+    expect(store.movements).toHaveLength(1)
+  })
+})

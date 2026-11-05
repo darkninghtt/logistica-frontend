@@ -26,6 +26,8 @@ declare module 'vue-router' {
   }
 }
 
+// Los nombres de ruta que usa el tiempo real para saber qué hay en pantalla: `stock`, `transfers`
+// y `transfer-detail` (ver `screenFromRoute` en realtime.ts).
 export const routes: RouteRecordRaw[] = [
   { path: '/login', component: LoginView, meta: { public: true } },
   {
@@ -35,7 +37,7 @@ export const routes: RouteRecordRaw[] = [
       { path: '', component: HomeView },
       { path: 'bodegas', component: WarehousesView },
       { path: 'productos', component: ProductsView },
-      { path: 'stock', component: StockView },
+      { path: 'stock', name: 'stock', component: StockView },
       { path: 'stock/entrada', component: StockEntryView, meta: { permission: 'stock:entry' } },
       {
         path: 'stock/merma',
@@ -44,13 +46,13 @@ export const routes: RouteRecordRaw[] = [
       },
       { path: 'kardex', component: KardexView, meta: { permission: 'reports:view' } },
       { path: 'reportes', component: ReportsView, meta: { permission: 'reports:view' } },
-      { path: 'traspasos', component: TransfersView },
+      { path: 'traspasos', name: 'transfers', component: TransfersView },
       {
         path: 'traspasos/nuevo',
         component: TransferNewView,
         meta: { permission: 'transfer:create' },
       },
-      { path: 'traspasos/:id', component: TransferDetailView },
+      { path: 'traspasos/:id', name: 'transfer-detail', component: TransferDetailView },
       { path: 'sin-permiso', component: ForbiddenView },
     ],
   },
