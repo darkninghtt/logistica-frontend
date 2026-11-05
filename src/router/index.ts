@@ -11,6 +11,7 @@ import StockView from '@/views/StockView.vue'
 import TransferDetailView from '@/views/TransferDetailView.vue'
 import TransferNewView from '@/views/TransferNewView.vue'
 import TransfersView from '@/views/TransfersView.vue'
+import UsersView from '@/views/UsersView.vue'
 import WarehousesView from '@/views/WarehousesView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
 import ForbiddenView from '@/views/ForbiddenView.vue'
@@ -53,6 +54,7 @@ export const routes: RouteRecordRaw[] = [
         meta: { permission: 'transfer:create' },
       },
       { path: 'traspasos/:id', name: 'transfer-detail', component: TransferDetailView },
+      { path: 'usuarios', component: UsersView, meta: { permission: 'users:manage' } },
       { path: 'sin-permiso', component: ForbiddenView },
     ],
   },

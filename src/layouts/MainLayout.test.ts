@@ -34,6 +34,7 @@ describe('MainLayout', () => {
       'Traspasos',
       'Kardex',
       'Reportes',
+      'Usuarios',
     ])
   })
 
@@ -84,6 +85,7 @@ describe('MainLayout: menú según el rol', () => {
         'Traspasos',
         'Kardex',
         'Reportes',
+        'Usuarios',
       ],
     ],
     [

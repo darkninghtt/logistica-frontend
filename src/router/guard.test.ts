@@ -139,6 +139,7 @@ describe('guard: permisos por rol', () => {
         { path: '/login', component: Stub, meta: { public: true } },
         { path: '/', component: Stub },
         { path: '/stock/entrada', component: Stub, meta: { permission: 'stock:entry' } },
+        { path: '/usuarios', component: Stub, meta: { permission: 'users:manage' } },
         { path: '/sin-permiso', component: Stub },
       ],
     })
@@ -175,6 +176,23 @@ describe('guard: permisos por rol', () => {
     },
   )
 
+  it('el ADMIN entra a la pantalla de usuarios', async () => {
+    await signInAs('ADMIN')
+    const router = buildRouterWithPermissions()
+    await router.push('/usuarios')
+    expect(router.currentRoute.value.path).toBe('/usuarios')
+  })
+
+  it.each(['WAREHOUSE_MANAGER', 'OPERATOR', 'AUDITOR'] as const)(
+    '%s que abre la pantalla de usuarios por URL va a la pantalla de sin permiso',
+    async (role) => {
+      await signInAs(role)
+      const router = buildRouterWithPermissions()
+      await router.push('/usuarios')
+      expect(router.currentRoute.value.path).toBe('/sin-permiso')
+    },
+  )
+
   it('las rutas sin permiso requerido quedan abiertas a cualquier rol con sesión', async () => {
     await signInAs('OPERATOR')
     const router = buildRouterWithPermissions()
@@ -193,5 +211,6 @@ describe('guard: permisos por rol', () => {
     const children = routes.flatMap((r) => r.children ?? [])
     expect(children.find((r) => r.path === 'stock/entrada')?.meta?.permission).toBe('stock:entry')
     expect(children.find((r) => r.path === 'stock/merma')?.meta?.permission).toBe('stock:shrinkage')
+    expect(children.find((r) => r.path === 'usuarios')?.meta?.permission).toBe('users:manage')
   })
 })
