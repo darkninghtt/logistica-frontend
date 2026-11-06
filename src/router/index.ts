@@ -28,15 +28,15 @@ declare module 'vue-router' {
   }
 }
 
-// Los nombres de ruta que usa el tiempo real para saber qué hay en pantalla: `stock`, `transfers`
-// y `transfer-detail` (ver `screenFromRoute` en realtime.ts).
+// Los nombres de ruta que usa el tiempo real para saber qué hay en pantalla: `home` (dashboard),
+// `stock`, `transfers` y `transfer-detail` (ver `screenFromRoute` en realtime.ts).
 export const routes: RouteRecordRaw[] = [
   { path: '/login', component: LoginView, meta: { public: true } },
   {
     path: '/',
     component: MainLayout,
     children: [
-      { path: '', component: HomeView },
+      { path: '', name: 'home', component: HomeView },
       { path: 'bodegas', component: WarehousesView },
       { path: 'productos', component: ProductsView },
       { path: 'stock', name: 'stock', component: StockView },

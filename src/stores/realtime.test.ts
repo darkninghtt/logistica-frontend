@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setActivePinia } from 'pinia'
 import { piniaSignedInAs } from '@/testing'
+import { useDashboardStore } from './dashboard'
 import { NOTICE_TTL_MS, useRealtimeStore } from './realtime'
 import { useStockStore } from './stock'
 import { useTransfersStore } from './transfers'
@@ -12,6 +13,7 @@ vi.mock('@/api/transfers')
 vi.mock('@/api/warehouses')
 vi.mock('@/api/products')
 vi.mock('@/api/stock')
+vi.mock('@/api/reports')
 
 const ON_LIST: RealtimeScreen = { name: 'transfers', transferId: null }
 const ON_HOME: RealtimeScreen = { name: null, transferId: null }
@@ -177,5 +179,33 @@ describe('store realtime: avisos', () => {
 
     vi.advanceTimersByTime(NOTICE_TTL_MS)
     expect(realtime.notices).toEqual([])
+  })
+})
+
+describe('store realtime: dashboard', () => {
+  const ON_DASHBOARD: RealtimeScreen = { name: 'home', transferId: null }
+  const stockEvent: RealtimeEvent = {
+    type: 'stock.changed',
+    payload: { warehouseId: 'wa', productIds: ['p1'] },
+  }
+
+  it('cualquier evento recarga el dashboard si está en pantalla y el rol lo ve', async () => {
+    const { realtime } = setup('ADMIN')
+    const refresh = vi.spyOn(useDashboardStore(), 'refreshAfterEvent').mockResolvedValue()
+
+    await realtime.handleEvent(stockEvent, ON_DASHBOARD)
+    await realtime.handleEvent(transferEvent('IN_TRANSIT'), ON_DASHBOARD)
+    await realtime.handleEvent(stockEvent, ON_LIST)
+
+    expect(refresh.mock.calls.map(([onScreen]) => onScreen)).toEqual([true, true, false])
+  })
+
+  it('al OPERATOR (sin dashboard) nunca se le pide el resumen', async () => {
+    const { realtime } = setup('OPERATOR')
+    const refresh = vi.spyOn(useDashboardStore(), 'refreshAfterEvent').mockResolvedValue()
+
+    await realtime.handleEvent(stockEvent, ON_DASHBOARD)
+
+    expect(refresh).toHaveBeenCalledWith(false)
   })
 })
