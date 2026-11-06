@@ -1,39 +1,17 @@
 import type { Role } from './auth'
+import type { ApiSchema } from './contract'
 
 /** Usuario tal como lo ve el ADMIN (GET /api/users): sin contraseña y con sus bodegas asignadas. */
-export interface ManagedUser {
-  id: string
-  name: string
-  email: string
-  role: Role
-  active: boolean
-  warehouseIds: string[]
-  createdAt: string
-}
+export type ManagedUser = ApiSchema<'ManagedUser'>
 
 /** Cuerpo de POST /api/users. La contraseña inicial es obligatoria (mínimo 12 caracteres). */
-export interface UserCreateInput {
-  email: string
-  name: string
-  role: Role
-  password: string
-  active: boolean
-}
+export type UserCreateInput = ApiSchema<'UserCreateInput'>
 
 /** Cuerpo de PUT /api/users/:id. La contraseña solo cambia si se envía. */
-export interface UserUpdateInput {
-  email: string
-  name: string
-  role: Role
-  password?: string
-  active: boolean
-}
+export type UserUpdateInput = ApiSchema<'UserUpdateInput'>
 
 /** Respuesta de PUT /api/users/:id/warehouses. */
-export interface UserWarehouses {
-  userId: string
-  warehouseIds: string[]
-}
+export type UserWarehouses = ApiSchema<'UserWarehouses'>
 
 /** Lo que entrega el formulario: los datos del usuario y las bodegas elegidas. */
 export interface UserFormValue {
@@ -45,3 +23,6 @@ export interface UserFormValue {
   active: boolean
   warehouseIds: string[]
 }
+
+/** GET /api/users. */
+export type ManagedUserPage = ApiSchema<'ManagedUserPage'>

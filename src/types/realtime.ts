@@ -1,3 +1,4 @@
+import type { ApiSchema } from './contract'
 import type { TransferStatus } from './transfer'
 
 /**
@@ -20,10 +21,7 @@ export type RealtimeEvent =
     }
 
 /** Respuesta de POST /api/realtime/ticket: ticket de un solo uso que vence en `expiresIn` segundos. */
-export interface RealtimeTicket {
-  ticket: string
-  expiresIn: number
-}
+export type RealtimeTicket = ApiSchema<'RealtimeTicket'>
 
 /** Estado de la conexión en vivo, para el indicador de la barra superior. */
 export type RealtimeStatus = 'disconnected' | 'connecting' | 'connected'

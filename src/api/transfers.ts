@@ -1,10 +1,9 @@
-import type { Page } from '@/types/api'
 import type {
   TransferDetail,
   TransferFilters,
   TransferInput,
+  TransferPage,
   TransferReceiveInput,
-  TransferSummary,
 } from '@/types/transfer'
 import { http } from './http'
 
@@ -12,8 +11,8 @@ export async function listTransfers(
   filters: TransferFilters,
   page: number,
   pageSize: number,
-): Promise<Page<TransferSummary>> {
-  const res = await http.get<Page<TransferSummary>>('/transfers', {
+): Promise<TransferPage> {
+  const res = await http.get<TransferPage>('/transfers', {
     // Los filtros vacíos no se envían
     params: {
       page,

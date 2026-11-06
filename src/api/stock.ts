@@ -1,13 +1,12 @@
-import type { CursorPage, Page } from '@/types/api'
-import type { StockLevelItem, StockMovementItem } from '@/types/stock'
+import type { StockLevelPage, StockMovementPage } from '@/types/stock'
 import { http } from './http'
 
 export async function listStockLevels(
   warehouseId: string,
   page: number,
   pageSize: number,
-): Promise<Page<StockLevelItem>> {
-  const res = await http.get<Page<StockLevelItem>>('/stock', {
+): Promise<StockLevelPage> {
+  const res = await http.get<StockLevelPage>('/stock', {
     params: { warehouseId, page, pageSize },
   })
   return res.data
@@ -22,8 +21,8 @@ export async function listStockMovements(
   productId: string | undefined,
   limit: number,
   cursor?: string,
-): Promise<CursorPage<StockMovementItem>> {
-  const res = await http.get<CursorPage<StockMovementItem>>('/stock/movements', {
+): Promise<StockMovementPage> {
+  const res = await http.get<StockMovementPage>('/stock/movements', {
     params: { warehouseId, productId, limit, cursor },
   })
   return res.data

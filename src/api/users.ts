@@ -1,9 +1,14 @@
-import type { Page } from '@/types/api'
-import type { ManagedUser, UserCreateInput, UserUpdateInput, UserWarehouses } from '@/types/user'
+import type {
+  ManagedUser,
+  ManagedUserPage,
+  UserCreateInput,
+  UserUpdateInput,
+  UserWarehouses,
+} from '@/types/user'
 import { http } from './http'
 
-export async function listUsers(page: number, pageSize: number): Promise<Page<ManagedUser>> {
-  const res = await http.get<Page<ManagedUser>>('/users', { params: { page, pageSize } })
+export async function listUsers(page: number, pageSize: number): Promise<ManagedUserPage> {
+  const res = await http.get<ManagedUserPage>('/users', { params: { page, pageSize } })
   return res.data
 }
 
