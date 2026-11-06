@@ -1,4 +1,5 @@
 import type {
+  DashboardSummary,
   ExportFormat,
   InTransitReport,
   KardexPage,
@@ -86,4 +87,10 @@ export function downloadShrinkage(
     { ...shrinkageParams(filters), format },
     `mermas.${format}`,
   )
+}
+
+/** Totales del dashboard (valor del inventario, traspasos por estado, mermas y tránsito). */
+export async function getSummary(): Promise<DashboardSummary> {
+  const res = await http.get<DashboardSummary>('/reports/summary')
+  return res.data
 }

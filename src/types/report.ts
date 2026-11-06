@@ -1,5 +1,6 @@
 import type { CursorPage } from './api'
 import type { MovementType } from './stockEntry'
+import type { TransferStatus } from './transfer'
 
 /** Fila del kardex valorizado (GET /api/reports/kardex). Costos y valores viajan como string. */
 export interface KardexRow {
@@ -71,4 +72,21 @@ export interface InTransitReportRow {
 export interface InTransitReport {
   data: InTransitReportRow[]
   totals: { transfers: number; quantity: number; value: string }
+}
+
+/** Valor del inventario de una bodega (cantidad × costo promedio de sus existencias). */
+export interface WarehouseInventoryValue {
+  warehouseId: string
+  code: string
+  name: string
+  value: string
+}
+
+/** Respuesta de GET /api/reports/summary, ya filtrada por las bodegas de quien la pide. */
+export interface DashboardSummary {
+  inventoryValueByWarehouse: WarehouseInventoryValue[]
+  transfersByStatus: Record<TransferStatus, number>
+  shrinkageLast30Days: { quantity: number; value: string }
+  /** Mercancía en tránsito al costo congelado al despachar. */
+  inTransitValue: string
 }
