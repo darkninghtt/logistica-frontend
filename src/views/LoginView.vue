@@ -67,7 +67,7 @@ async function onSubmit(): Promise<void> {
   display: grid;
   place-items: center;
   font-family: system-ui, sans-serif;
-  background: #f3f4f6;
+  background: var(--bg);
 }
 .card {
   display: flex;
@@ -75,7 +75,7 @@ async function onSubmit(): Promise<void> {
   gap: 1rem;
   width: min(22rem, 90vw);
   padding: 1.5rem;
-  background: #fff;
+  background: var(--surface);
   border-radius: 0.5rem;
   box-shadow: 0 1px 4px rgb(0 0 0 / 15%);
 }
@@ -90,15 +90,15 @@ label {
 }
 input {
   padding: 0.5rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-strong);
   border-radius: 0.25rem;
 }
 button {
   padding: 0.6rem;
   border: 0;
   border-radius: 0.25rem;
-  background: #1f2937;
-  color: #fff;
+  background: var(--text);
+  color: var(--bg);
   cursor: pointer;
 }
 button:disabled {
@@ -107,7 +107,7 @@ button:disabled {
 }
 .field-error,
 .server-error {
-  color: #b91c1c;
+  color: var(--danger);
   margin: 0;
 }
 </style>

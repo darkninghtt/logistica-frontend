@@ -49,7 +49,7 @@ label {
 }
 .field-error {
   margin: 0;
-  color: #b91c1c;
+  color: var(--danger);
 }
 button {
   justify-self: start;

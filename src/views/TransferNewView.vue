@@ -59,6 +59,6 @@ async function onSubmit(input: TransferInput): Promise<void> {
 
 <style scoped>
 .hint {
-  color: #4b5563;
+  color: var(--muted);
 }
 </style>

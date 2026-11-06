@@ -90,28 +90,31 @@ const links = computed(() =>
 <style scoped>
 .layout {
   min-height: 100vh;
-  font-family: system-ui, sans-serif;
 }
+/* En pantallas angostas la barra se reparte en varias líneas en lugar de desbordarse */
 .topbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 2rem;
+  gap: 0.75rem 2rem;
   padding: 0.75rem 1.5rem;
-  background: #1f2937;
+  background: var(--topbar);
   color: #fff;
 }
 nav {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
 }
 .session {
   margin-left: auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem 0.75rem;
 }
 nav a {
-  color: #d1d5db;
+  color: var(--topbar-text);
   text-decoration: none;
 }
 nav a.router-link-exact-active {
@@ -122,11 +125,22 @@ nav a.router-link-exact-active {
   padding: 1.5rem;
 }
 .account {
-  color: #d1d5db;
+  color: var(--topbar-text);
 }
 .live {
   font-size: 0.8rem;
-  color: #d1d5db;
+  color: var(--topbar-text);
+}
+@media (max-width: 700px) {
+  .topbar {
+    padding: 0.75rem 1rem;
+  }
+  .session {
+    margin-left: 0;
+  }
+  .content {
+    padding: 1rem;
+  }
 }
 .live::before {
   content: '';

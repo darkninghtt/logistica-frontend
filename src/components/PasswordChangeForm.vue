@@ -110,7 +110,7 @@ defineExpose({ reset })
   max-width: 24rem;
   margin: 1rem 0;
   padding: 1rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
 }
 label {
@@ -119,10 +119,10 @@ label {
 }
 .field-error {
   margin: 0;
-  color: #b91c1c;
+  color: var(--danger);
 }
 .ok {
   margin: 0;
-  color: #15803d;
+  color: var(--success);
 }
 </style>

@@ -100,7 +100,7 @@ function onSubmit(): void {
 .receive {
   margin: 1rem 0;
   padding: 1rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
 }
 .receive h2 {
@@ -108,7 +108,7 @@ function onSubmit(): void {
   font-size: 1.1rem;
 }
 .hint {
-  color: #4b5563;
+  color: var(--muted);
 }
 table {
   width: 100%;
@@ -119,7 +119,7 @@ th,
 td {
   padding: 0.5rem;
   text-align: left;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
 .num {
@@ -130,9 +130,9 @@ input {
 }
 .field-error {
   margin: 0.25rem 0 0;
-  color: #b91c1c;
+  color: var(--danger);
 }
 .warning {
-  color: #92400e;
+  color: var(--warning);
 }
 </style>
