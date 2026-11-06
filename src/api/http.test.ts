@@ -195,6 +195,14 @@ describe('renovación de sesión ante un 401', () => {
     expect(expired).not.toHaveBeenCalled()
   })
 
+  it('un 401 de logout-all (token vencido) sí renueva la sesión y reintenta', async () => {
+    refreshResponds(200)
+    const res = await http.post('/auth/logout-all', {}, { adapter: api })
+
+    expect(res.data).toEqual({ ok: true })
+    expect(refreshCalls).toBe(1)
+  })
+
   it('un error que no es 401 no intenta renovar la sesión', async () => {
     refreshResponds(200)
     const err = await http

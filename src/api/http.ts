@@ -57,7 +57,8 @@ export function toApiError(err: unknown): ApiError {
   return new ApiError('Ocurrió un error inesperado', null, null, null)
 }
 
-// Endpoints de sesión: un 401 aquí es una respuesta normal, no un token vencido.
+// Endpoints de sesión: un 401 aquí es una respuesta normal, no un token vencido. Se comparan
+// enteros: `/auth/logout-all` o `/auth/sessions` sí usan el access token y deben renovarlo.
 const SESSION_ENDPOINTS = ['/auth/login', '/auth/refresh', '/auth/logout']
 
 /**
@@ -131,7 +132,7 @@ http.interceptors.response.use(
       apiError.status === 401 &&
       config !== undefined &&
       !config.retriedAfterRefresh &&
-      !SESSION_ENDPOINTS.some((endpoint) => config.url?.startsWith(endpoint))
+      !SESSION_ENDPOINTS.includes(config.url ?? '')
     if (!config || !canRefresh) throw apiError
 
     try {
