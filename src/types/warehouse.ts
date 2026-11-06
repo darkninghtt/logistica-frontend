@@ -1,14 +1,12 @@
-export interface Warehouse {
-  id: string
-  code: string
-  name: string
-  active: boolean
-  createdAt: string
-}
+import type { ApiSchema } from './contract'
+
+export type Warehouse = ApiSchema<'Warehouse'>
 
 /** Cuerpo de POST y PUT /api/warehouses. */
-export interface WarehouseInput {
-  code: string
-  name: string
-  active: boolean
-}
+export type WarehouseInput = ApiSchema<'WarehouseInput'>
+
+/** GET /api/warehouses. */
+export type WarehousePage = ApiSchema<'WarehousePage'>
+
+/** GET /api/warehouses/destinations: todas las bodegas activas. */
+export type WarehouseDestinationList = ApiSchema<'WarehouseDestinationList'>

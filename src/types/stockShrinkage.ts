@@ -1,21 +1,10 @@
-import type { StockLevel, StockMovement } from './stockEntry'
+import type { ApiSchema } from './contract'
 
 /** Motivos de una merma de bodega, como los acepta la API. */
-export type ShrinkageReason = 'DAMAGE' | 'EXPIRED' | 'THEFT' | 'COUNT_ADJUSTMENT'
+export type ShrinkageReason = ApiSchema<'StockShrinkageInput'>['reason']
 
 /** Cuerpo de POST /api/stock/shrinkage. */
-export interface StockShrinkageInput {
-  warehouseId: string
-  productId: string
-  quantity: number
-  reason: ShrinkageReason
-  note?: string
-}
+export type StockShrinkageInput = ApiSchema<'StockShrinkageInput'>
 
-/** Respuesta de POST /api/stock/shrinkage. Los costos son opcionales: la API no los envía al OPERATOR. */
-export interface StockShrinkageResult {
-  movement: Omit<StockMovement, 'unitCost' | 'balanceAvgCost'> &
-    Partial<Pick<StockMovement, 'unitCost' | 'balanceAvgCost'>>
-  stockLevel: Omit<StockLevel, 'avgCost' | 'totalValue'> &
-    Partial<Pick<StockLevel, 'avgCost' | 'totalValue'>>
-}
+/** Respuesta de POST /api/stock/shrinkage. Los costos no llegan al OPERATOR. */
+export type StockShrinkageResult = ApiSchema<'StockEntryResponse'>

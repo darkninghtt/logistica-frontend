@@ -1,23 +1,13 @@
-import type { StockLevel, StockMovement } from './stockEntry'
+import type { ApiSchema } from './contract'
 
-/**
- * Existencias con los datos del producto (GET /api/stock). Los costos viajan como string y son
- * opcionales: la API no los envía al OPERATOR.
- */
-export interface StockLevelItem
-  extends
-    Omit<StockLevel, 'avgCost' | 'totalValue'>,
-    Partial<Pick<StockLevel, 'avgCost' | 'totalValue'>> {
-  productSku: string
-  productName: string
-  productUnit: string
-}
+/** Existencias con los datos del producto (GET /api/stock). Sin costos para el OPERATOR. */
+export type StockLevelItem = ApiSchema<'StockLevelItem'>
 
 /** Movimiento del libro con los datos del producto (GET /api/stock/movements). Sin costos para el OPERATOR. */
-export interface StockMovementItem
-  extends
-    Omit<StockMovement, 'unitCost' | 'balanceAvgCost'>,
-    Partial<Pick<StockMovement, 'unitCost' | 'balanceAvgCost'>> {
-  productSku: string
-  productName: string
-}
+export type StockMovementItem = ApiSchema<'StockMovementItem'>
+
+/** GET /api/stock (paginado por número de página). */
+export type StockLevelPage = ApiSchema<'StockLevelPage'>
+
+/** GET /api/stock/movements (paginado por cursor). */
+export type StockMovementPage = ApiSchema<'StockMovementPage'>

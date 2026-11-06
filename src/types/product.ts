@@ -1,14 +1,9 @@
-export interface Product {
-  id: string
-  sku: string
-  name: string
-  unit: string
-  createdAt: string
-}
+import type { ApiSchema } from './contract'
+
+export type Product = ApiSchema<'Product'>
 
 /** Cuerpo de POST y PUT /api/products. */
-export interface ProductInput {
-  sku: string
-  name: string
-  unit: string
-}
+export type ProductInput = ApiSchema<'ProductInput'>
+
+/** GET /api/products. */
+export type ProductPage = ApiSchema<'ProductPage'>

@@ -1,9 +1,8 @@
-import type { Page } from '@/types/api'
-import type { Product, ProductInput } from '@/types/product'
+import type { Product, ProductInput, ProductPage } from '@/types/product'
 import { http } from './http'
 
-export async function listProducts(page: number, pageSize: number): Promise<Page<Product>> {
-  const res = await http.get<Page<Product>>('/products', { params: { page, pageSize } })
+export async function listProducts(page: number, pageSize: number): Promise<ProductPage> {
+  const res = await http.get<ProductPage>('/products', { params: { page, pageSize } })
   return res.data
 }
 

@@ -1,21 +1,12 @@
-export type Role = 'ADMIN' | 'WAREHOUSE_MANAGER' | 'OPERATOR' | 'AUDITOR'
+import type { ApiSchema } from './contract'
+
+export type Role = ApiSchema<'User'>['role']
 
 /** Usuario autenticado tal como lo devuelve POST /api/auth/login. */
-export interface AuthUser {
-  id: string
-  name: string
-  email: string
-  role: Role
-}
+export type AuthUser = ApiSchema<'User'>
 
 /** Cuerpo de POST /api/auth/login. */
-export interface LoginInput {
-  email: string
-  password: string
-}
+export type LoginInput = ApiSchema<'LoginRequest'>
 
 /** Respuesta de POST /api/auth/login. */
-export interface LoginResponse {
-  accessToken: string
-  user: AuthUser
-}
+export type LoginResponse = ApiSchema<'LoginResponse'>
