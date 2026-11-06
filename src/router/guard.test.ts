@@ -206,11 +206,15 @@ describe('guard: permisos por rol', () => {
     expect(router.currentRoute.value.path).toBe('/login')
   })
 
-  it('el router real exige el permiso en la entrada de stock y en las mermas', async () => {
+  it('el router real exige el permiso en cada pantalla restringida', async () => {
     const { routes } = await import('@/router')
     const children = routes.flatMap((r) => r.children ?? [])
-    expect(children.find((r) => r.path === 'stock/entrada')?.meta?.permission).toBe('stock:entry')
-    expect(children.find((r) => r.path === 'stock/merma')?.meta?.permission).toBe('stock:shrinkage')
-    expect(children.find((r) => r.path === 'usuarios')?.meta?.permission).toBe('users:manage')
+    const permissionOf = (path: string) => children.find((r) => r.path === path)?.meta?.permission
+    expect(permissionOf('stock/entrada')).toBe('stock:entry')
+    expect(permissionOf('stock/merma')).toBe('stock:shrinkage')
+    expect(permissionOf('traspasos/nuevo')).toBe('transfer:create')
+    expect(permissionOf('kardex')).toBe('reports:view')
+    expect(permissionOf('reportes')).toBe('reports:view')
+    expect(permissionOf('usuarios')).toBe('users:manage')
   })
 })
