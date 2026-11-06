@@ -76,6 +76,7 @@ const links = computed(() =>
         <span v-if="auth.user" data-test="user">
           {{ auth.user.name }} · {{ ROLE_LABELS[auth.user.role] }}
         </span>
+        <RouterLink to="/mi-cuenta" class="account">Mi cuenta</RouterLink>
         <button type="button" @click="onLogout">Cerrar sesión</button>
       </div>
     </header>
@@ -119,6 +120,9 @@ nav a.router-link-exact-active {
 }
 .content {
   padding: 1.5rem;
+}
+.account {
+  color: #d1d5db;
 }
 .live {
   font-size: 0.8rem;

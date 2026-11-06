@@ -4,6 +4,7 @@ import HomeView from '@/views/HomeView.vue'
 import KardexView from '@/views/KardexView.vue'
 import LoginView from '@/views/LoginView.vue'
 import ProductsView from '@/views/ProductsView.vue'
+import SessionsView from '@/views/SessionsView.vue'
 import ReportsView from '@/views/ReportsView.vue'
 import StockEntryView from '@/views/StockEntryView.vue'
 import StockShrinkageView from '@/views/StockShrinkageView.vue'
@@ -55,6 +56,7 @@ export const routes: RouteRecordRaw[] = [
       },
       { path: 'traspasos/:id', name: 'transfer-detail', component: TransferDetailView },
       { path: 'usuarios', component: UsersView, meta: { permission: 'users:manage' } },
+      { path: 'mi-cuenta', component: SessionsView },
       { path: 'sin-permiso', component: ForbiddenView },
     ],
   },
