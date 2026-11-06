@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import TransferDiscrepancy from '@/components/TransferDiscrepancy.vue'
 import TransferReceiveForm from '@/components/TransferReceiveForm.vue'
 import TransferResolveForm from '@/components/TransferResolveForm.vue'
+import { formatCost, formatDateTime } from '@/format'
 import { TRANSFER_STATUS_LABELS } from '@/transfers'
 import { useAuthStore } from '@/stores/auth'
 import { useTransfersStore } from '@/stores/transfers'
@@ -99,10 +100,6 @@ async function onReceive(input: TransferReceiveInput): Promise<void> {
 async function onResolve(reason: string): Promise<void> {
   await store.resolve(id.value, reason)
 }
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('es-CO')
-}
 </script>
 
 <template>
@@ -158,7 +155,7 @@ function formatDate(iso: string): string {
         <dt>Destino</dt>
         <dd>{{ detail.destination.code }} · {{ detail.destination.name }}</dd>
         <dt>Creado</dt>
-        <dd>{{ formatDate(detail.createdAt) }}</dd>
+        <dd>{{ formatDateTime(detail.createdAt) }}</dd>
         <template v-if="detail.note">
           <dt>Nota</dt>
           <dd>{{ detail.note }}</dd>
@@ -180,7 +177,7 @@ function formatDate(iso: string): string {
             <td>{{ item.productSku }} · {{ item.productName }}</td>
             <td>{{ item.quantitySent }}</td>
             <td v-if="hasReceived">{{ item.quantityReceived ?? '—' }}</td>
-            <td v-if="hasCosts">{{ item.unitCost ? `$${item.unitCost}` : '—' }}</td>
+            <td v-if="hasCosts">{{ formatCost(item.unitCost) }}</td>
           </tr>
         </tbody>
       </table>
@@ -213,7 +210,7 @@ function formatDate(iso: string): string {
           <template v-if="event.fromStatus">
             (antes: {{ TRANSFER_STATUS_LABELS[event.fromStatus] }})
           </template>
-          · {{ event.actor.name }} · {{ formatDate(event.createdAt) }}
+          · {{ event.actor.name }} · {{ formatDateTime(event.createdAt) }}
           <template v-if="event.reason"> · {{ event.reason }}</template>
         </li>
       </ol>
@@ -244,10 +241,10 @@ function formatDate(iso: string): string {
   flex: 1;
 }
 .field-error {
-  color: #b91c1c;
+  color: var(--danger);
 }
 .hint {
-  color: #4b5563;
+  color: var(--muted);
 }
 .summary {
   display: grid;
@@ -268,25 +265,25 @@ th,
 td {
   padding: 0.5rem;
   text-align: left;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
 }
 .status {
   margin-left: 0.5rem;
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
-  background: #e5e7eb;
+  background: var(--chip);
   font-size: 0.85rem;
   font-weight: normal;
 }
 .status[data-status='IN_TRANSIT'] {
-  background: #dbeafe;
+  background: var(--chip-info);
 }
 .status[data-status='RECEIVED'],
 .status[data-status='RESOLVED'] {
-  background: #dcfce7;
+  background: var(--chip-success);
 }
 .status[data-status='DISCREPANCY'] {
-  background: #fee2e2;
+  background: var(--chip-danger);
 }
 .events {
   padding-left: 1.25rem;

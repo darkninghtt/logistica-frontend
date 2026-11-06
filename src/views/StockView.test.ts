@@ -7,7 +7,7 @@ import * as warehousesApi from '@/api/warehouses'
 import * as productsApi from '@/api/products'
 import { ApiError } from '@/api/http'
 import StockView from './StockView.vue'
-import { piniaSignedInAs } from '@/testing'
+import { piniaSignedInAs, plain } from '@/testing'
 import type { Role } from '@/types/auth'
 import type { StockLevelItem, StockMovementItem } from '@/types/stock'
 
@@ -129,8 +129,8 @@ describe('StockView', () => {
     const wrapper = await mountView()
     await chooseWarehouse(wrapper)
 
-    const cells = wrapper.findAll('[data-test=levels-table] tbody td').map((c) => c.text())
-    expect(cells).toEqual(['SKU-1', 'Tornillo', 'un', '20', '110.0000', '2200.0000'])
+    const cells = wrapper.findAll('[data-test=levels-table] tbody td').map((c) => plain(c.text()))
+    expect(cells).toEqual(['SKU-1', 'Tornillo', 'un', '20', '$ 110,00', '$ 2.200,00'])
   })
 
   it('muestra el historial con el saldo y el costo después de cada movimiento', async () => {
@@ -139,16 +139,16 @@ describe('StockView', () => {
 
     const rows = wrapper.findAll('[data-test=movements-table] tbody tr')
     expect(rows).toHaveLength(2)
-    const latest = rows[0]?.findAll('td').map((c) => c.text()) ?? []
+    const latest = rows[0]?.findAll('td').map((c) => plain(c.text())) ?? []
     expect(latest.slice(1)).toEqual([
       'SKU-1',
       'Tornillo',
       'Entrada',
       '',
       '+10',
-      '120.0000',
+      '$ 120,00',
       '20',
-      '110.0000',
+      '$ 110,00',
     ])
   })
 
@@ -206,7 +206,17 @@ describe('StockView', () => {
     expect(wrapper.find('[data-test=levels-empty]').text()).toContain(
       'todavía no tiene existencias',
     )
+    expect(wrapper.find('[data-test=levels-empty] a').text()).toBe('Registra una entrada.')
     expect(wrapper.find('[data-test=movements-empty]').text()).toContain('No hay movimientos')
+  })
+
+  it('sin existencias, al OPERATOR no le ofrece registrar una entrada', async () => {
+    vi.mocked(stockApi.listStockLevels).mockResolvedValue(pageOf([]))
+    vi.mocked(stockApi.listStockMovements).mockResolvedValue(cursorPageOf([]))
+    const wrapper = await mountView('OPERATOR')
+    await chooseWarehouse(wrapper)
+
+    expect(wrapper.find('[data-test=levels-empty] a').exists()).toBe(false)
   })
 
   it('muestra el error de las existencias y permite reintentar', async () => {
@@ -297,11 +307,11 @@ describe('StockView según el rol (costos)', () => {
       const wrapper = await mountView(role)
       await chooseWarehouse(wrapper)
 
-      const text = wrapper.text()
+      const text = plain(wrapper.text())
       expect(text).toContain('Costo promedio')
       expect(text).toContain('Valor total')
       expect(text).toContain('Costo unitario')
-      expect(text).toContain('110.0000')
+      expect(text).toContain('$ 110,00')
     },
   )
 

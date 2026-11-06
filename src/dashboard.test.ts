@@ -1,24 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { formatMoney, inventorySeries, totalTransfers, transfersSeries } from './dashboard'
+import { inventorySeries, totalTransfers, transfersSeries } from './dashboard'
 import { dashboardSummary } from './testing'
 
 const SUMMARY = dashboardSummary()
-
-/** Quita los espacios especiales que pone Intl (varían según el motor) para comparar el texto. */
-function plain(text: string): string {
-  return text.replace(/\s/g, ' ')
-}
-
-describe('formatMoney', () => {
-  it('muestra pesos con separadores en español y dos decimales', () => {
-    expect(plain(formatMoney('1249.4112'))).toBe('$ 1.249,41')
-    expect(plain(formatMoney('0.0000'))).toBe('$ 0,00')
-  })
-
-  it('un texto que no es número se muestra tal cual', () => {
-    expect(formatMoney('n/d')).toBe('n/d')
-  })
-})
 
 describe('series de los gráficos', () => {
   it('inventario: una barra por bodega con su código y nombre', () => {

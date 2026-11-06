@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive } from 'vue'
 import { RouterLink } from 'vue-router'
+import { formatDate, formatMoney } from '@/format'
 import { MOVEMENT_TYPE_LABELS, formatMovementReason } from '@/movements'
 import { useReportsStore } from '@/stores/reports'
 import { useStockStore } from '@/stores/stock'
@@ -24,10 +25,6 @@ onMounted(() => {
   void stock.loadOptions()
   consult()
 })
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-CO')
-}
 </script>
 
 <template>
@@ -40,7 +37,7 @@ function formatDate(iso: string): string {
         <select v-model="filters.warehouseId" name="warehouse">
           <option value="">Todas mis bodegas</option>
           <option v-for="w in stock.warehouses" :key="w.id" :value="w.id">
-            {{ w.code }} · {{ w.name }}
+            {{ w.code }} · {{ w.name }}{{ w.active ? '' : ' (inactiva)' }}
           </option>
         </select>
       </label>
@@ -93,14 +90,14 @@ function formatDate(iso: string): string {
               <td>{{ MOVEMENT_TYPE_LABELS[row.type] }}</td>
               <td>{{ formatMovementReason(row.reason) }}</td>
               <td class="num">{{ row.quantity }}</td>
-              <td class="num">{{ row.value }}</td>
+              <td class="num">{{ formatMoney(row.value) }}</td>
             </tr>
           </tbody>
           <tfoot>
             <tr data-test="shrinkage-totals">
               <th colspan="4">Total</th>
               <th class="num">{{ reports.shrinkage.totals.quantity }}</th>
-              <th class="num">{{ reports.shrinkage.totals.value }}</th>
+              <th class="num">{{ formatMoney(reports.shrinkage.totals.value) }}</th>
             </tr>
           </tfoot>
         </table>
@@ -164,14 +161,14 @@ function formatDate(iso: string): string {
             <td>{{ formatDate(row.dispatchedAt) }}</td>
             <td class="num">{{ row.daysInTransit }}</td>
             <td class="num">{{ row.quantity }}</td>
-            <td class="num">{{ row.value }}</td>
+            <td class="num">{{ formatMoney(row.value) }}</td>
           </tr>
         </tbody>
         <tfoot>
           <tr data-test="in-transit-totals">
             <th colspan="5">{{ reports.inTransit.totals.transfers }} traspasos</th>
             <th class="num">{{ reports.inTransit.totals.quantity }}</th>
-            <th class="num">{{ reports.inTransit.totals.value }}</th>
+            <th class="num">{{ formatMoney(reports.inTransit.totals.value) }}</th>
           </tr>
         </tfoot>
       </table>
@@ -192,7 +189,7 @@ function formatDate(iso: string): string {
   gap: 0.25rem;
 }
 .hint {
-  color: #4b5563;
+  color: var(--muted);
   margin-top: 0;
 }
 .scroll {
@@ -206,7 +203,7 @@ th,
 td {
   padding: 0.5rem;
   text-align: left;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
 }
 .num {
   text-align: right;

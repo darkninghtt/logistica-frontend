@@ -6,7 +6,7 @@ import * as warehousesApi from '@/api/warehouses'
 import * as productsApi from '@/api/products'
 import { ApiError } from '@/api/http'
 import ReportsView from './ReportsView.vue'
-import { piniaSignedInAs } from '@/testing'
+import { piniaSignedInAs, plain } from '@/testing'
 import type { InTransitReport, ShrinkageReport } from '@/types/report'
 
 vi.mock('@/api/reports')
@@ -105,12 +105,12 @@ describe('ReportsView', () => {
     expect(reportsApi.getInTransitReport).toHaveBeenCalledWith('')
     const rows = wrapper
       .findAll('[data-test=shrinkage-table] tbody tr')
-      .map((tr) => tr.findAll('td').map((td) => td.text()))
+      .map((tr) => tr.findAll('td').map((td) => plain(td.text())))
     expect(rows).toEqual([
-      ['A · Bodega A', 'SKU-1 · Tornillo', 'Merma', 'Daño', '3', '312.3528'],
-      ['A · Bodega A', 'SKU-1 · Tornillo', 'Merma en tránsito', '', '1', '90.0000'],
+      ['A · Bodega A', 'SKU-1 · Tornillo', 'Merma', 'Daño', '3', '$ 312,35'],
+      ['A · Bodega A', 'SKU-1 · Tornillo', 'Merma en tránsito', '', '1', '$ 90,00'],
     ])
-    expect(wrapper.find('[data-test=shrinkage-totals]').text()).toContain('402.3528')
+    expect(plain(wrapper.find('[data-test=shrinkage-totals]').text())).toContain('$ 402,35')
     expect(wrapper.find('[data-test=in-transit-table]').text()).toContain('B · Bodega B')
     expect(wrapper.find('[data-test=in-transit-totals]').text()).toContain('1 traspasos')
     expect(wrapper.find('a[href="/traspasos/t-1"]').exists()).toBe(true)

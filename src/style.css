@@ -1,0 +1,110 @@
+/*
+ * Estilos globales: colores como variables (claro y oscuro según el sistema) y una base común para
+ * textos, formularios y tablas. Cada componente conserva sus estilos propios (scoped) y usa estas
+ * variables en lugar de colores fijos.
+ */
+:root {
+  color-scheme: light dark;
+  --bg: #f9fafb;
+  --surface: #ffffff;
+  --text: #111827;
+  --muted: #4b5563;
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+  --link: #1d4ed8;
+  --danger: #b91c1c;
+  --warning: #92400e;
+  --success: #15803d;
+  --success-bg: #f0fdf4;
+  --success-border: #86efac;
+  --danger-bg: #fef2f2;
+  --danger-border: #fca5a5;
+  --chip: #e5e7eb;
+  --chip-info: #dbeafe;
+  --chip-success: #dcfce7;
+  --chip-danger: #fee2e2;
+  --topbar: #1f2937;
+  --topbar-text: #d1d5db;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111827;
+    --surface: #1f2937;
+    --text: #f3f4f6;
+    --muted: #9ca3af;
+    --border: #374151;
+    --border-strong: #4b5563;
+    --link: #93c5fd;
+    --danger: #fca5a5;
+    --warning: #fcd34d;
+    --success: #86efac;
+    --success-bg: #052e16;
+    --success-border: #166534;
+    --danger-bg: #450a0a;
+    --danger-border: #991b1b;
+    --chip: #374151;
+    --chip-info: #1e3a8a;
+    --chip-success: #14532d;
+    --chip-danger: #7f1d1d;
+    --topbar: #030712;
+    --topbar-text: #d1d5db;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+  line-height: 1.4;
+}
+
+a {
+  color: var(--link);
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+input,
+select,
+textarea {
+  max-width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  padding: 0.4rem;
+}
+
+button {
+  padding: 0.4rem 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* En pantallas angostas las tablas anchas se desplazan dentro de sí mismas, no la página entera */
+@media (max-width: 700px) {
+  table {
+    display: block;
+    overflow-x: auto;
+  }
+}

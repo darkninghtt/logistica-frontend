@@ -21,7 +21,7 @@ Stack: Vue 3 (`<script setup lang="ts">`) · Pinia · Vue Router · TypeScript e
 | `/usuarios`                      | Crear y editar usuarios, activarlos o desactivarlos y asignarles bodegas                                     | ADMIN                                                             |
 | `/mi-cuenta`                     | Sesiones activas (cerrar una o todas) y cambio de contraseña                                                 | Todos                                                             |
 
-Toda vista muestra los estados de carga, error y vacío; ninguna queda en blanco.
+Toda vista muestra los estados de carga, error y vacío; ninguna queda en blanco. Los montos se ven en pesos y las fechas en la hora de Colombia (`src/format.ts`); la interfaz sigue el modo claro u oscuro del sistema (`src/style.css`) y se usa en un celular de 375 px sin desplazamiento horizontal (las tablas anchas se desplazan dentro de sí mismas).
 
 ## Arquitectura
 
@@ -36,6 +36,8 @@ src/
   views/        una vista por pantalla
   components/   piezas reutilizables
   permissions.ts  qué puede hacer cada rol en la interfaz (solo comodidad: la seguridad está en el backend)
+  format.ts       formato de moneda y fechas para mostrar (los cálculos los hace el backend con decimal.js)
+  style.css       colores (claro y oscuro) y estilos base
 ```
 
 - El estado de un formulario o de una sola vista se queda en el componente; lo compartido va en los stores.

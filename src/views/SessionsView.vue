@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import PasswordChangeForm from '@/components/PasswordChangeForm.vue'
+import { formatDateTime } from '@/format'
 import { describeUserAgent } from '@/sessions'
 import { useSessionsStore } from '@/stores/sessions'
 import type { PasswordChangeInput } from '@/types/session'
@@ -13,7 +14,7 @@ const passwordForm = ref<InstanceType<typeof PasswordChangeForm> | null>(null)
 onMounted(() => store.fetchSessions())
 
 function formatDate(iso: string | null): string {
-  return iso ? new Date(iso).toLocaleString('es-CO') : '—'
+  return iso ? formatDateTime(iso) : '—'
 }
 
 async function onLogoutAll(): Promise<void> {
@@ -102,21 +103,21 @@ th,
 td {
   padding: 0.5rem;
   text-align: left;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
 }
 .current {
   margin-left: 0.5rem;
   font-size: 0.8rem;
-  color: #15803d;
+  color: var(--success);
 }
 .all {
   margin-top: 1rem;
 }
 .hint {
-  color: #6b7280;
+  color: var(--muted);
   font-size: 0.875rem;
 }
 .field-error {
-  color: #b91c1c;
+  color: var(--danger);
 }
 </style>

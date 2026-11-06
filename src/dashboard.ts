@@ -1,23 +1,6 @@
 import { TRANSFER_STATUS_LABELS, TRANSFER_STATUSES } from './transfers'
 import type { DashboardSummary } from './types/report'
 
-const MONEY = new Intl.NumberFormat('es-CO', {
-  style: 'currency',
-  currency: 'COP',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
-
-/**
- * Muestra un valor de la API ("1249.4112") como moneda en español ("$ 1.249,41"). Solo es para
- * mostrar: no se hacen cuentas con el número (las sumas ya llegan hechas por el backend con
- * decimal.js). Un texto que no es número se muestra tal cual.
- */
-export function formatMoney(value: string): string {
-  const amount = Number(value)
-  return Number.isFinite(amount) ? MONEY.format(amount) : value
-}
-
 /** Datos que recibe un gráfico: etiquetas y un número por etiqueta. */
 export interface ChartSeries {
   labels: string[]

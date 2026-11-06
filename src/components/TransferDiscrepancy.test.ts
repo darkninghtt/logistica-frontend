@@ -22,8 +22,8 @@ describe('TransferDiscrepancy', () => {
 
     const rows = wrapper.findAll('tbody tr').map((row) => row.findAll('td').map((c) => c.text()))
     expect(rows).toEqual([
-      ['S-a · Producto a', '8', '7', '-1', 'Faltante: merma en tránsito de 1 u'],
-      ['S-b · Producto b', '5', '6', '+1', 'Sobrante: ajuste de entrada de 1 u'],
+      ['S-a · Producto a', '8', '7', '-1', 'Faltante de 1: merma en tránsito'],
+      ['S-b · Producto b', '5', '6', '+1', 'Sobrante de 1: ajuste de entrada'],
     ])
   })
 

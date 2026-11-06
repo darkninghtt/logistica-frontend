@@ -171,7 +171,7 @@ function onSubmit(): void {
   max-width: 28rem;
   margin: 1rem 0;
   padding: 1rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
 }
 label {
@@ -186,17 +186,17 @@ label {
 fieldset {
   display: grid;
   gap: 0.25rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 6px;
 }
 .hint {
   margin: 0;
-  color: #6b7280;
+  color: var(--muted);
   font-size: 0.875rem;
 }
 .field-error {
   margin: 0;
-  color: #b91c1c;
+  color: var(--danger);
 }
 .actions {
   display: flex;

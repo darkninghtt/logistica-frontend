@@ -30,3 +30,8 @@ export function dashboardSummary(): DashboardSummary {
     inTransitValue: '208.2352',
   }
 }
+
+/** Quita los espacios especiales que pone Intl (varían según el motor) para comparar el texto. */
+export function plain(text: string): string {
+  return text.replace(/\s/g, ' ')
+}

@@ -114,7 +114,9 @@ describe('StockEntryView', () => {
     const status = wrapper.find('[role=status]')
     expect(status.text()).toContain('Entrada registrada')
     expect(status.text()).toContain('20')
-    expect(status.text()).toContain('$110.0000')
+    expect(status.text().replace(/\s/g, ' ')).toContain('Costo promedio: $ 110,00')
+    // La unidad es la del producto, no una "u" fija
+    expect(status.text()).toContain('20 un')
     expect(wrapper.find<HTMLInputElement>('input[name=quantity]').element.value).toBe('')
   })
 

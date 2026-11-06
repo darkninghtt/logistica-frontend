@@ -163,7 +163,7 @@ describe('TransferDetailView: estados de la vista', () => {
     vi.mocked(api.getTransfer).mockResolvedValue(transfer('IN_TRANSIT'))
     const wrapper = await mountView('WAREHOUSE_MANAGER')
     expect(wrapper.find('thead').text()).toContain('Costo unitario')
-    expect(wrapper.find('tbody').text()).toContain('$110.0000')
+    expect(wrapper.find('tbody').text().replace(/\s/g, ' ')).toContain('$ 110,00')
   })
 
   it('al OPERATOR (sin costos en la respuesta) no le muestra la columna de costos', async () => {
@@ -391,7 +391,7 @@ describe('TransferDetailView: recibir', () => {
     expect(wrapper.find('[data-test=status]').text()).toBe('Con discrepancia')
     const discrepancy = wrapper.find('[data-test=discrepancy]')
     expect(discrepancy.text()).toContain('Discrepancia pendiente')
-    expect(discrepancy.text()).toContain('Faltante: merma en tránsito de 1 u')
+    expect(discrepancy.text()).toContain('Faltante de 1: merma en tránsito')
     expect(wrapper.find('form').exists()).toBe(false)
   })
 
