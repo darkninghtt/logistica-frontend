@@ -18,3 +18,14 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # Contrato de tipos: el openapi.json de main del backend (sale de sus esquemas Zod) debe
+      # coincidir con src/types/api.generated.ts. Si falla: npm run api:types y subir el cambio.
+      - name: Descarga el contrato del backend
+        uses: actions/checkout@v4
+        with:
+          repository: darkninghtt/logistica-backend
+          path: backend-contract
+          sparse-checkout: openapi.json
+          sparse-checkout-cone-mode: false
+      - name: Tipos de la API al día con el contrato
+        run: npx openapi-typescript backend-contract/openapi.json -o src/types/api.generated.ts --check
