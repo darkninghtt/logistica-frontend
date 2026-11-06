@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import StockEntryForm from '@/components/StockEntryForm.vue'
+import { formatCost, formatMoney } from '@/format'
 import { useStockEntriesStore } from '@/stores/stockEntries'
 import type { StockEntryInput } from '@/types/stockEntry'
 
@@ -11,6 +12,12 @@ const form = ref<InstanceType<typeof StockEntryForm> | null>(null)
 onMounted(() => {
   store.clearResult()
   void store.loadOptions()
+})
+
+// La unidad del producto de la última entrada (un cable se cuenta en metros, no en unidades)
+const unit = computed(() => {
+  const productId = store.lastEntry?.movement.productId
+  return store.products.find((p) => p.id === productId)?.unit ?? ''
 })
 
 async function onSubmit(input: StockEntryInput): Promise<void> {
@@ -51,13 +58,13 @@ async function onSubmit(input: StockEntryInput): Promise<void> {
       <div v-if="store.lastEntry" class="result" role="status">
         <h2>Entrada registrada</h2>
         <p>
-          Stock actual: <strong>{{ store.lastEntry.stockLevel.quantity }}</strong> u · Costo
-          promedio: <strong>${{ store.lastEntry.stockLevel.avgCost }}</strong> · Valor total:
-          <strong>${{ store.lastEntry.stockLevel.totalValue }}</strong>
+          Stock actual: <strong>{{ store.lastEntry.stockLevel.quantity }} {{ unit }}</strong> ·
+          Costo promedio: <strong>{{ formatCost(store.lastEntry.stockLevel.avgCost) }}</strong> ·
+          Valor total: <strong>{{ formatMoney(store.lastEntry.stockLevel.totalValue) }}</strong>
         </p>
         <p>
-          Movimiento #{{ store.lastEntry.movement.id }}: +{{ store.lastEntry.movement.quantity }} u
-          a ${{ store.lastEntry.movement.unitCost }}
+          Movimiento #{{ store.lastEntry.movement.id }}: +{{ store.lastEntry.movement.quantity }}
+          {{ unit }} a {{ formatCost(store.lastEntry.movement.unitCost) }}
         </p>
       </div>
     </template>
@@ -68,9 +75,9 @@ async function onSubmit(input: StockEntryInput): Promise<void> {
 .result {
   max-width: 32rem;
   padding: 1rem;
-  border: 1px solid #86efac;
+  border: 1px solid var(--success-border);
   border-radius: 6px;
-  background: #f0fdf4;
+  background: var(--success-bg);
 }
 .result h2 {
   margin-top: 0;

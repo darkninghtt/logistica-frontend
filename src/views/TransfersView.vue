@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { formatDateTime } from '@/format'
 import { TRANSFER_STATUSES, TRANSFER_STATUS_LABELS } from '@/transfers'
 import { useAuthStore } from '@/stores/auth'
 import { useTransfersStore } from '@/stores/transfers'
@@ -29,10 +30,6 @@ function onWarehouseChange(event: Event): void {
   if (event.target instanceof HTMLSelectElement) {
     void store.setFilters({ warehouseId: event.target.value })
   }
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('es-CO')
 }
 </script>
 
@@ -76,11 +73,18 @@ function formatDate(iso: string): string {
     </div>
 
     <p v-else-if="store.items.length === 0" data-test="empty">
-      {{
-        store.filters.status || store.filters.warehouseId
-          ? 'No hay traspasos con esos filtros.'
-          : 'Todavía no hay traspasos.'
-      }}
+      <template v-if="store.filters.status || store.filters.warehouseId">
+        No hay traspasos con esos filtros.
+        <button type="button" @click="store.setFilters({ status: '', warehouseId: '' })">
+          Quitar filtros
+        </button>
+      </template>
+      <template v-else>
+        Todavía no hay traspasos.
+        <RouterLink v-if="auth.can('transfer:create')" to="/traspasos/nuevo">
+          Crea el primero.
+        </RouterLink>
+      </template>
     </p>
 
     <template v-else>
@@ -105,7 +109,7 @@ function formatDate(iso: string): string {
               </span>
             </td>
             <td>{{ transfer.itemCount }}</td>
-            <td>{{ formatDate(transfer.createdAt) }}</td>
+            <td>{{ formatDateTime(transfer.createdAt) }}</td>
             <td><RouterLink :to="`/traspasos/${transfer.id}`">Ver</RouterLink></td>
           </tr>
         </tbody>
@@ -136,13 +140,14 @@ function formatDate(iso: string): string {
 }
 .button {
   padding: 0.4rem 0.8rem;
-  border: 1px solid #1f2937;
+  border: 1px solid var(--text);
   border-radius: 4px;
   color: inherit;
   text-decoration: none;
 }
 .filters {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   margin: 1rem 0;
 }
@@ -158,23 +163,23 @@ th,
 td {
   padding: 0.5rem;
   text-align: left;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
 }
 .status {
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
-  background: #e5e7eb;
+  background: var(--chip);
   font-size: 0.85rem;
 }
 .status[data-status='IN_TRANSIT'] {
-  background: #dbeafe;
+  background: var(--chip-info);
 }
 .status[data-status='RECEIVED'],
 .status[data-status='RESOLVED'] {
-  background: #dcfce7;
+  background: var(--chip-success);
 }
 .status[data-status='DISCREPANCY'] {
-  background: #fee2e2;
+  background: var(--chip-danger);
 }
 .pager {
   display: flex;

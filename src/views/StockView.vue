@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { formatCost, formatDateTime, formatMoney } from '@/format'
 import { MOVEMENT_TYPE_LABELS, formatMovementReason, signedQuantity } from '@/movements'
 import { useAuthStore } from '@/stores/auth'
 import { useStockStore } from '@/stores/stock'
@@ -20,10 +21,6 @@ function onWarehouseChange(event: Event): void {
 
 function onProductChange(event: Event): void {
   if (event.target instanceof HTMLSelectElement) void store.selectProduct(event.target.value)
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('es-CO')
 }
 </script>
 
@@ -55,7 +52,7 @@ function formatDate(iso: string): string {
         <select name="warehouse" :value="store.warehouseId" @change="onWarehouseChange">
           <option value="">Selecciona una bodega</option>
           <option v-for="w in store.warehouses" :key="w.id" :value="w.id">
-            {{ w.code }} · {{ w.name }}
+            {{ w.code }} · {{ w.name }}{{ w.active ? '' : ' (inactiva)' }}
           </option>
         </select>
       </label>
@@ -76,6 +73,9 @@ function formatDate(iso: string): string {
         </div>
         <p v-else-if="store.levels.length === 0" data-test="levels-empty">
           Esta bodega todavía no tiene existencias.
+          <RouterLink v-if="auth.can('stock:entry')" to="/stock/entrada">
+            Registra una entrada.
+          </RouterLink>
         </p>
         <template v-else>
           <table data-test="levels-table">
@@ -98,8 +98,8 @@ function formatDate(iso: string): string {
                 <td>{{ level.productUnit }}</td>
                 <td class="num">{{ level.quantity }}</td>
                 <template v-if="levelsHaveCosts">
-                  <td class="num">{{ level.avgCost }}</td>
-                  <td class="num">{{ level.totalValue }}</td>
+                  <td class="num">{{ formatCost(level.avgCost) }}</td>
+                  <td class="num">{{ formatMoney(level.totalValue) }}</td>
                 </template>
               </tr>
             </tbody>
@@ -162,15 +162,17 @@ function formatDate(iso: string): string {
             </thead>
             <tbody>
               <tr v-for="movement in store.movements" :key="movement.id">
-                <td>{{ formatDate(movement.createdAt) }}</td>
+                <td>{{ formatDateTime(movement.createdAt) }}</td>
                 <td>{{ movement.productSku }}</td>
                 <td>{{ movement.productName }}</td>
                 <td>{{ MOVEMENT_TYPE_LABELS[movement.type] }}</td>
                 <td>{{ formatMovementReason(movement.reason) }}</td>
                 <td class="num">{{ signedQuantity(movement.type, movement.quantity) }}</td>
-                <td v-if="movementsHaveCosts" class="num">{{ movement.unitCost }}</td>
+                <td v-if="movementsHaveCosts" class="num">{{ formatCost(movement.unitCost) }}</td>
                 <td class="num">{{ movement.balanceQty }}</td>
-                <td v-if="movementsHaveCosts" class="num">{{ movement.balanceAvgCost }}</td>
+                <td v-if="movementsHaveCosts" class="num">
+                  {{ formatCost(movement.balanceAvgCost) }}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -210,7 +212,7 @@ th,
 td {
   padding: 0.5rem;
   text-align: left;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
 }
 .num {
   text-align: right;

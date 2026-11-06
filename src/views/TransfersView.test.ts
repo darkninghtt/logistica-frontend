@@ -91,6 +91,13 @@ describe('TransfersView', () => {
     vi.mocked(api.listTransfers).mockResolvedValue(pageOf([]))
     const wrapper = await mountView()
     expect(wrapper.find('[data-test=empty]').text()).toContain('Todavía no hay traspasos')
+    expect(wrapper.find('[data-test=empty] a').text()).toBe('Crea el primero.')
+  })
+
+  it('sin traspasos, a quien no crea traspasos no le ofrece crearlos', async () => {
+    vi.mocked(api.listTransfers).mockResolvedValue(pageOf([]))
+    const wrapper = await mountView('AUDITOR')
+    expect(wrapper.find('[data-test=empty] a').exists()).toBe(false)
   })
 
   it('con filtros y sin resultados lo dice distinto', async () => {
@@ -101,6 +108,10 @@ describe('TransfersView', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-test=empty]').text()).toContain('No hay traspasos con esos filtros')
+
+    await wrapper.find('[data-test=empty] button').trigger('click')
+    await flushPromises()
+    expect(api.listTransfers).toHaveBeenLastCalledWith({ status: '', warehouseId: '' }, 1, 10)
   })
 
   it('si falla la carga muestra el error y permite reintentar', async () => {

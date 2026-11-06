@@ -55,7 +55,7 @@ describe('HomeView (dashboard)', () => {
       expect(wrapper.find('[data-test=card-transit]').text()).toMatch(/208,24/)
       expect(wrapper.find('[data-test=card-transit]').text()).toContain('1 traspasos en camino')
       expect(wrapper.find('[data-test=card-shrinkage]').text()).toMatch(/492,35/)
-      expect(wrapper.find('[data-test=card-shrinkage]').text()).toContain('5 unidades')
+      expect(wrapper.find('[data-test=card-shrinkage]').text()).toContain('Cantidad total: 5')
       expect(wrapper.find('[data-test=card-transfers]').text()).toContain('8')
       expect(wrapper.find('[data-test=inventory-table]').text()).toMatch(/A · Bodega A.*1\.249,41/)
     },

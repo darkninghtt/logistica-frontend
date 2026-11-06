@@ -129,9 +129,9 @@ describe('KardexView', () => {
       '10',
       '',
       '10',
-      '100.0000',
-      '100.0000',
-      '1000.0000',
+      '$ 100,00',
+      '$ 100,00',
+      '$ 1.000,00',
     ])
     expect(cells[1]?.slice(1, 6)).toEqual(['Salida por traspaso', 'Ver traspaso', '', '4', '6'])
     // La merma en tránsito no es entrada ni salida: su cantidad va en la referencia
@@ -193,6 +193,18 @@ describe('KardexView', () => {
     await flushPromises()
 
     expect(wrapper.find('select[name=warehouse]').exists()).toBe(true)
+  })
+})
+
+describe('KardexView: bodegas inactivas', () => {
+  it('siguen en la lista (su kardex es historia) pero marcadas como inactivas', async () => {
+    vi.mocked(warehousesApi.listWarehouses).mockResolvedValue(
+      listOf([WAREHOUSE, { ...WAREHOUSE, id: 'w-2', code: 'Z', name: 'Vieja', active: false }]),
+    )
+    const wrapper = await mountView()
+
+    const options = wrapper.findAll('select[name=warehouse] option').map((o) => o.text())
+    expect(options).toEqual(['Elige una bodega', 'A · Bodega A', 'Z · Vieja (inactiva)'])
   })
 })
 

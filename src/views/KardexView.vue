@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { formatCost, formatDateTime, formatMoney } from '@/format'
 import { MOVEMENT_TYPE_LABELS, formatMovementReason } from '@/movements'
 import { useReportsStore } from '@/stores/reports'
 import { useStockStore } from '@/stores/stock'
@@ -23,10 +24,6 @@ function onProductChange(event: Event): void {
   if (event.target instanceof HTMLSelectElement) {
     void reports.loadKardex(reports.kardexWarehouseId, event.target.value)
   }
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('es-CO')
 }
 
 /** Entrada o salida; vacío si es cero (la merma en tránsito no es ninguna de las dos). */
@@ -61,7 +58,7 @@ function referenceText(row: KardexRow): string {
           <select name="warehouse" :value="reports.kardexWarehouseId" @change="onWarehouseChange">
             <option value="">Elige una bodega</option>
             <option v-for="w in stock.warehouses" :key="w.id" :value="w.id">
-              {{ w.code }} · {{ w.name }}
+              {{ w.code }} · {{ w.name }}{{ w.active ? '' : ' (inactiva)' }}
             </option>
           </select>
         </label>
@@ -137,7 +134,7 @@ function referenceText(row: KardexRow): string {
             </thead>
             <tbody>
               <tr v-for="row in reports.kardex" :key="row.id">
-                <td>{{ formatDate(row.createdAt) }}</td>
+                <td>{{ formatDateTime(row.createdAt) }}</td>
                 <td>{{ MOVEMENT_TYPE_LABELS[row.type] }}</td>
                 <td>
                   {{ referenceText(row) }}
@@ -148,9 +145,9 @@ function referenceText(row: KardexRow): string {
                 <td class="num">{{ quantityCell(row.quantityIn) }}</td>
                 <td class="num">{{ quantityCell(row.quantityOut) }}</td>
                 <td class="num">{{ row.balanceQty }}</td>
-                <td class="num">{{ row.unitCost }}</td>
-                <td class="num">{{ row.balanceAvgCost }}</td>
-                <td class="num">{{ row.balanceValue }}</td>
+                <td class="num">{{ formatCost(row.unitCost) }}</td>
+                <td class="num">{{ formatCost(row.balanceAvgCost) }}</td>
+                <td class="num">{{ formatMoney(row.balanceValue) }}</td>
               </tr>
             </tbody>
           </table>
@@ -198,7 +195,7 @@ th,
 td {
   padding: 0.5rem;
   text-align: left;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
 }
 .num {
   text-align: right;

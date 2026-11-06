@@ -47,8 +47,8 @@ function signed(value: number): string {
           <td>
             {{
               d.kind === 'shortage'
-                ? `Faltante: merma en tránsito de ${-d.difference} u`
-                : `Sobrante: ajuste de entrada de ${d.difference} u`
+                ? `Faltante de ${-d.difference}: merma en tránsito`
+                : `Sobrante de ${d.difference}: ajuste de entrada`
             }}
           </td>
         </tr>
@@ -61,13 +61,13 @@ function signed(value: number): string {
 .discrepancy {
   margin: 1rem 0;
   padding: 1rem;
-  border: 1px solid #fca5a5;
+  border: 1px solid var(--danger-border);
   border-radius: 6px;
-  background: #fef2f2;
+  background: var(--danger-bg);
 }
 .discrepancy[data-resolved='true'] {
-  border-color: #86efac;
-  background: #f0fdf4;
+  border-color: var(--success-border);
+  background: var(--success-bg);
 }
 .discrepancy h2 {
   margin-top: 0;
@@ -81,7 +81,7 @@ th,
 td {
   padding: 0.5rem;
   text-align: left;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
 }
 .num {
   text-align: right;

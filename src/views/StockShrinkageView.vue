@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import StockShrinkageForm from '@/components/StockShrinkageForm.vue'
+import { formatCost } from '@/format'
 import { formatMovementReason } from '@/movements'
 import { useStockShrinkagesStore } from '@/stores/stockShrinkages'
 import type { StockShrinkageInput } from '@/types/stockShrinkage'
@@ -12,6 +13,12 @@ const form = ref<InstanceType<typeof StockShrinkageForm> | null>(null)
 onMounted(() => {
   store.clearResult()
   void store.loadOptions()
+})
+
+// La unidad del producto de la última merma (un cable se cuenta en metros, no en unidades)
+const unit = computed(() => {
+  const productId = store.lastShrinkage?.movement.productId
+  return store.products.find((p) => p.id === productId)?.unit ?? ''
 })
 
 async function onSubmit(input: StockShrinkageInput): Promise<void> {
@@ -58,18 +65,19 @@ async function onSubmit(input: StockShrinkageInput): Promise<void> {
       <div v-if="store.lastShrinkage" class="result" role="status">
         <h2>Merma registrada</h2>
         <p>
-          Stock actual: <strong>{{ store.lastShrinkage.stockLevel.quantity }}</strong> u
+          Stock actual: <strong>{{ store.lastShrinkage.stockLevel.quantity }} {{ unit }}</strong>
           <template v-if="store.lastShrinkage.stockLevel.avgCost !== undefined">
-            · Costo promedio: <strong>${{ store.lastShrinkage.stockLevel.avgCost }}</strong>
+            · Costo promedio:
+            <strong>{{ formatCost(store.lastShrinkage.stockLevel.avgCost) }}</strong>
           </template>
         </p>
         <p>
           Movimiento #{{ store.lastShrinkage.movement.id }}: -{{
             store.lastShrinkage.movement.quantity
           }}
-          u
+          {{ unit }}
           <template v-if="store.lastShrinkage.movement.unitCost !== undefined">
-            a ${{ store.lastShrinkage.movement.unitCost }}
+            a {{ formatCost(store.lastShrinkage.movement.unitCost) }}
           </template>
           · {{ formatMovementReason(store.lastShrinkage.movement.reason) }}
         </p>
@@ -81,14 +89,14 @@ async function onSubmit(input: StockShrinkageInput): Promise<void> {
 
 <style scoped>
 .hint {
-  color: #4b5563;
+  color: var(--muted);
 }
 .result {
   max-width: 32rem;
   padding: 1rem;
-  border: 1px solid #86efac;
+  border: 1px solid var(--success-border);
   border-radius: 6px;
-  background: #f0fdf4;
+  background: var(--success-bg);
 }
 .result h2 {
   margin-top: 0;

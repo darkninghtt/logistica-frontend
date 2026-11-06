@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted } from 'vue'
-import { formatMoney, inventorySeries, totalTransfers, transfersSeries } from '@/dashboard'
+import { inventorySeries, totalTransfers, transfersSeries } from '@/dashboard'
+import { formatMoney } from '@/format'
 import { useDashboardStore } from '@/stores/dashboard'
 import { TRANSFER_STATUS_LABELS, TRANSFER_STATUSES } from '@/transfers'
 
@@ -37,7 +38,7 @@ const transferCount = computed(() => (store.summary ? totalTransfers(store.summa
         <article class="card" data-test="card-shrinkage">
           <h3>Mermas (últimos 30 días)</h3>
           <p class="big">{{ formatMoney(store.summary.shrinkageLast30Days.value) }}</p>
-          <p class="hint">{{ store.summary.shrinkageLast30Days.quantity }} unidades</p>
+          <p class="hint">Cantidad total: {{ store.summary.shrinkageLast30Days.quantity }}</p>
         </article>
         <article class="card" data-test="card-transfers">
           <h3>Traspasos</h3>
@@ -105,13 +106,13 @@ const transferCount = computed(() => (store.summary ? totalTransfers(store.summa
 }
 .card {
   padding: 1rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 6px;
 }
 .card h3 {
   margin: 0;
   font-size: 0.9rem;
-  color: #6b7280;
+  color: var(--muted);
 }
 .big {
   margin: 0.25rem 0;
@@ -120,7 +121,7 @@ const transferCount = computed(() => (store.summary ? totalTransfers(store.summa
 }
 .hint {
   margin: 0;
-  color: #6b7280;
+  color: var(--muted);
   font-size: 0.875rem;
 }
 .tables {
@@ -141,7 +142,7 @@ th,
 td {
   padding: 0.4rem;
   text-align: left;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
 }
 .num {
   text-align: right;
