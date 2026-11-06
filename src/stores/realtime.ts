@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { TRANSFER_STATUS_LABELS } from '@/transfers'
 import { useAuthStore } from './auth'
+import { useDashboardStore } from './dashboard'
 import { useStockStore } from './stock'
 import { useTransfersStore } from './transfers'
 import type {
@@ -44,6 +45,8 @@ export const useRealtimeStore = defineStore('realtime', () => {
    * vez por la API, que ya filtra por rol.
    */
   async function handleEvent(event: RealtimeEvent, screen: RealtimeScreen): Promise<void> {
+    // Cualquier cambio de stock o de un traspaso mueve los totales del dashboard
+    void refreshDashboard(screen)
     if (event.type === 'stock.changed') {
       await useStockStore().refreshAfterEvent(event.payload.warehouseId, screen.name === 'stock')
       return
@@ -78,6 +81,12 @@ export const useRealtimeStore = defineStore('realtime', () => {
     }
   }
 
+  /** El dashboard solo se vuelve a pedir si está en pantalla y el rol lo ve (datos de costo). */
+  function refreshDashboard(screen: RealtimeScreen): Promise<void> {
+    const onScreen = screen.name === 'home' && useAuthStore().can('reports:view')
+    return useDashboardStore().refreshAfterEvent(onScreen)
+  }
+
   /**
    * Tras reconectar se pudieron perder eventos: se descarta todo y se vuelve a pedir lo que está en
    * pantalla (la BD es la fuente de verdad).
@@ -90,6 +99,7 @@ export const useRealtimeStore = defineStore('realtime', () => {
         detail: screen.name === 'transfer-detail' && screen.transferId !== null,
       }),
       stock.refreshAfterEvent(stock.warehouseId, screen.name === 'stock'),
+      refreshDashboard(screen),
     ])
   }
 
